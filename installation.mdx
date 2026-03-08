@@ -1,0 +1,499 @@
+---
+title: "Installation"
+description: "Complete setup guide for EduMate's AI-powered assessment platform"
+---
+
+This guide walks you through installing all dependencies and configuring EduMate for development or production use.
+
+## System Requirements
+
+- **Operating System**: Linux, macOS, or Windows with WSL2
+- **Python**: 3.8 or higher
+- **Node.js**: 16 or higher
+- **RAM**: Minimum 8GB (16GB recommended for Ollama models)
+- **Disk Space**: At least 10GB free (for models and databases)
+
+## Core Dependencies
+
+EduMate requires five main services to function:
+
+1. **PostgreSQL** - User data and assessment storage
+2. **Qdrant** - Vector database for semantic search
+3. **Ollama** - Local LLM embeddings
+4. **Redis** - Background job queue
+5. **Google Gemini** - AI question generation
+
+<Steps>
+  <Step title="Install PostgreSQL">
+    PostgreSQL stores user accounts, authentication data, and generated assessments.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt update
+      sudo apt install postgresql postgresql-contrib
+      sudo systemctl start postgresql
+      sudo systemctl enable postgresql
+      ```
+
+      ```bash macOS
+      brew install postgresql@16
+      brew services start postgresql@16
+      ```
+
+      ```bash Arch Linux
+      sudo pacman -S postgresql
+      sudo systemctl start postgresql
+      sudo systemctl enable postgresql
+      ```
+    </CodeGroup>
+
+    Create the database and user:
+
+    ```bash
+    sudo -u postgres psql
+    ```
+
+    ```sql
+    CREATE DATABASE edumate;
+    CREATE USER edumate_user WITH PASSWORD 'edumate_pass';
+    GRANT ALL PRIVILEGES ON DATABASE edumate TO edumate_user;
+    \q
+    ```
+
+    <Note>
+    EduMate uses SQLAlchemy with PostgreSQL-specific features like JSONB columns for storing assessment data efficiently.
+    </Note>
+
+    Verify the connection:
+
+    ```bash
+    psql -h localhost -U edumate_user -d edumate
+    # Enter password: edumate_pass
+    ```
+  </Step>
+
+  <Step title="Install Qdrant Vector Database">
+    Qdrant stores document embeddings for semantic search and retrieval.
+
+    The easiest way to run Qdrant is using Docker:
+
+    ```bash
+    docker pull qdrant/qdrant
+    docker run -p 6333:6333 -p 6334:6334 \
+      -v $(pwd)/qdrant_storage:/qdrant/storage:z \
+      qdrant/qdrant
+    ```
+
+    Alternatively, install Qdrant natively:
+
+    <CodeGroup>
+      ```bash Linux
+      wget https://github.com/qdrant/qdrant/releases/download/v1.7.0/qdrant-x86_64-unknown-linux-gnu.tar.gz
+      tar -xvf qdrant-x86_64-unknown-linux-gnu.tar.gz
+      ./qdrant
+      ```
+
+      ```bash macOS
+      brew install qdrant
+      qdrant
+      ```
+    </CodeGroup>
+
+    Verify Qdrant is running:
+
+    ```bash
+    curl http://localhost:6333/health
+    # Should return: {"title":"healthz","version":"1.7.0"}
+    ```
+
+    <Info>
+    EduMate creates collections dynamically with names like `edu_mate_<uuid>` for each uploaded document. The embeddings use dimension 896 (from qwen3-embedding:0.6b).
+    </Info>
+  </Step>
+
+  <Step title="Install Ollama and Embedding Model">
+    Ollama provides local embeddings for document chunking and semantic search.
+
+    Install Ollama:
+
+    <CodeGroup>
+      ```bash Linux
+      curl -fsSL https://ollama.com/install.sh | sh
+      ```
+
+      ```bash macOS
+      brew install ollama
+      ```
+
+      ```bash Manual
+      # Download from https://ollama.com/download
+      ```
+    </CodeGroup>
+
+    Start the Ollama service:
+
+    ```bash
+    ollama serve
+    ```
+
+    Pull the required embedding model:
+
+    ```bash
+    ollama pull qwen3-embedding:0.6b
+    ```
+
+    Verify the installation:
+
+    ```bash
+    curl http://localhost:11434/api/tags
+    ```
+
+    <Warning>
+    EduMate is configured to use `qwen3-embedding:0.6b` by default. If you want to use a different model, you'll need to update both `backend/queue/doc_chunking.py` and `backend/queue/chat.py`:
+
+    ```python
+    embedding_model = OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',  # Change this
+        base_url='http://localhost:11434'
+    )
+    ```
+    </Warning>
+  </Step>
+
+  <Step title="Install Redis">
+    Redis powers the RQ (Redis Queue) system for background job processing.
+
+    <CodeGroup>
+      ```bash Ubuntu/Debian
+      sudo apt update
+      sudo apt install redis-server
+      sudo systemctl start redis-server
+      sudo systemctl enable redis-server
+      ```
+
+      ```bash macOS
+      brew install redis
+      brew services start redis
+      ```
+
+      ```bash Docker
+      docker run -d -p 6379:6379 redis:alpine
+      ```
+    </CodeGroup>
+
+    Test the Redis connection:
+
+    ```bash
+    redis-cli ping
+    # Should return: PONG
+    ```
+
+    <Note>
+    The Redis connection is configured in `backend/client/rq_client.py`:
+
+    ```python
+    queue = Queue(
+        connection=Redis(
+            host='localhost',
+            port="6379",
+        )
+    )
+    ```
+    </Note>
+  </Step>
+
+  <Step title="Get Google Gemini API Key">
+    EduMate uses Google's Gemini 2.5 Flash model for generating MCQ questions.
+
+    1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+    2. Sign in with your Google account
+    3. Click "Create API Key"
+    4. Copy the generated API key
+
+    Create a `.env` file in your project root:
+
+    ```bash
+    GEMINI_API_KEY=your_api_key_here
+    ```
+
+    <Info>
+    The Gemini integration is configured in `backend/queue/chat.py` to use the OpenAI-compatible endpoint:
+
+    ```python
+    open_ai_client = OpenAI(
+        api_key=GEMINI_API_KEY,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+    )
+    ```
+    </Info>
+  </Step>
+
+  <Step title="Install Python Dependencies">
+    Clone the repository and install the backend dependencies:
+
+    ```bash
+    git clone <repository-url>
+    cd edu-mate
+    ```
+
+    Create a virtual environment (recommended):
+
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+
+    Install dependencies from `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    Key dependencies installed:
+
+    - **FastAPI 0.124.4** - Modern web framework
+    - **SQLAlchemy** - Database ORM
+    - **LangChain 1.2.0** - LLM orchestration
+    - **langchain-qdrant 1.1.0** - Qdrant vector store integration
+    - **langchain-ollama 1.0.1** - Ollama embeddings
+    - **Qdrant-client 1.16.2** - Vector database client
+    - **Redis 7.1.0 + RQ 2.6.1** - Job queue system
+    - **PyPDF 6.4.2** - PDF parsing
+    - **PyJWT 2.8.0** - JWT authentication
+    - **Bcrypt 5.0.0** - Password hashing
+    - **Psycopg2-binary 2.9.11** - PostgreSQL adapter
+
+    <Tip>
+    You can view the complete dependency list in `requirements.txt` at the project root.
+    </Tip>
+  </Step>
+
+  <Step title="Install Frontend Dependencies">
+    Install Node.js dependencies for the React frontend:
+
+    ```bash
+    cd frontend
+    npm install
+    ```
+
+    Key packages from `package.json`:
+
+    - **React 19.2.0** - UI library
+    - **Vite 7.3.1** - Build tool and dev server
+    - **React Router DOM 7.13.0** - Client-side routing
+    - **Axios 1.13.5** - HTTP client for API calls
+    - **Framer Motion 12.34.1** - Animations
+    - **Lucide React 0.574.0** - Icons
+    - **Tailwind CSS 3.4.17** - Utility-first CSS
+    - **jsPDF 4.1.0** - PDF export
+    - **docx 9.5.3** - DOCX export
+
+    Build the frontend for production:
+
+    ```bash
+    npm run build
+    ```
+
+    Or run in development mode:
+
+    ```bash
+    npm run dev
+    ```
+  </Step>
+
+  <Step title="Configure Database Connection">
+    Update the database URL in `backend/database.py` if you used different credentials:
+
+    ```python backend/database.py
+    SQLALCHEMY_DATABASE_URL = "postgresql://edumate_user:edumate_pass@localhost:5432/edumate"
+
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base = declarative_base()
+    ```
+
+    The database tables will be created automatically on first run:
+
+    ```python backend/server.py
+    models.Base.metadata.create_all(bind=engine)
+    ```
+
+    This creates two tables:
+    - **users** - Authentication and user profiles
+    - **assessments** - Saved MCQ assessments with JSONB content
+  </Step>
+
+  <Step title="Start All Services">
+    You'll need three terminal windows:
+
+    **Terminal 1 - Redis Worker:**
+    ```bash
+    source venv/bin/activate
+    rq worker
+    ```
+
+    **Terminal 2 - Backend Server:**
+    ```bash
+    source venv/bin/activate
+    python -m backend.main
+    ```
+
+    The server starts on `http://localhost:8000` (configured in `backend/main.py`).
+
+    **Terminal 3 - Frontend (Development):**
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+
+    <Info>
+    If you built the frontend (`npm run build`), the FastAPI server automatically serves it from the `/` route. No need to run a separate frontend dev server.
+    </Info>
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Test that everything is working:
+
+<Steps>
+  <Step title="Check API Health">
+    ```bash
+    curl http://localhost:8000
+    # Should return app info or serve the React frontend
+    ```
+  </Step>
+
+  <Step title="Test Database Connection">
+    ```bash
+    psql -h localhost -U edumate_user -d edumate -c "SELECT version();"
+    ```
+  </Step>
+
+  <Step title="Verify Qdrant">
+    ```bash
+    curl http://localhost:6333/collections
+    # Should return: {"result":{"collections":[]}}
+    ```
+  </Step>
+
+  <Step title="Check Ollama Model">
+    ```bash
+    curl http://localhost:11434/api/tags | grep qwen3-embedding
+    ```
+  </Step>
+
+  <Step title="Test Redis Queue">
+    ```bash
+    redis-cli info | grep connected_clients
+    ```
+  </Step>
+</Steps>
+
+## Configuration Reference
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash .env
+# Required
+GEMINI_API_KEY=your_gemini_api_key
+
+# Optional - defaults shown
+POSTGRES_USER=edumate_user
+POSTGRES_PASSWORD=edumate_pass
+POSTGRES_DB=edumate
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+QDRANT_URL=http://localhost:6333
+OLLAMA_URL=http://localhost:11434
+```
+
+### Key Configuration Files
+
+| File | Purpose |
+|------|--------|
+| `backend/database.py` | PostgreSQL connection string |
+| `backend/server.py` | JWT secret, token expiration, API routes |
+| `backend/client/rq_client.py` | Redis connection for job queue |
+| `backend/queue/doc_chunking.py` | Embedding model, chunk size, Qdrant config |
+| `backend/queue/chat.py` | Gemini model, prompt templates |
+| `frontend/vite.config.js` | Frontend build configuration |
+
+### Document Processing Configuration
+
+In `backend/queue/doc_chunking.py`:
+
+```python
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 15000,      # Characters per chunk
+    chunk_overlap = 4000     # Overlap between chunks
+)
+
+embedding_model = OllamaEmbeddings(
+    model='qwen3-embedding:0.6b',
+    base_url='http://localhost:11434'
+)
+
+vector_store = QdrantVectorStore.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    url='http://localhost:6333',
+    collection_name=collection_name,
+)
+```
+
+<Tip>
+Adjust `chunk_size` and `chunk_overlap` based on your document types. Larger chunks work better for dense technical content, while smaller chunks help with more granular topics.
+</Tip>
+
+## Common Issues
+
+<Warning>
+**Port conflicts:** If ports 8000, 6333, 6379, 11434, or 5432 are already in use, you'll need to either stop the conflicting service or modify EduMate's configuration to use different ports.
+</Warning>
+
+<Warning>
+**Ollama model not found:** If you see `model 'qwen3-embedding:0.6b' not found`, run:
+```bash
+ollama pull qwen3-embedding:0.6b
+```
+</Warning>
+
+<Warning>
+**PostgreSQL authentication failed:** Make sure your credentials in `backend/database.py` match the user you created in PostgreSQL. You may need to edit `/etc/postgresql/*/main/pg_hba.conf` to allow password authentication.
+</Warning>
+
+<Warning>
+**RQ worker not processing jobs:** Ensure:
+1. Redis is running: `redis-cli ping`
+2. The worker is started: `rq worker`
+3. The worker and FastAPI are using the same Redis instance
+</Warning>
+
+<Warning>
+**PDF extraction failures:** EduMate uses PyPDF which requires PDFs with extractable text. Scanned images or protected PDFs may fail. Consider using OCR preprocessing for image-based PDFs.
+</Warning>
+
+## Production Deployment
+
+For production environments, consider:
+
+- Use a production WSGI server like **Gunicorn** or **Uvicorn** with workers
+- Set a strong `SECRET_KEY` in `backend/server.py` (current default is for development only)
+- Enable HTTPS with a reverse proxy (Nginx/Caddy)
+- Use managed PostgreSQL and Redis services
+- Deploy Qdrant in cluster mode for high availability
+- Set up proper logging and monitoring
+- Use environment variables instead of hardcoded credentials
+- Implement rate limiting on API endpoints
+- Set up automatic backups for PostgreSQL
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Ready to generate your first assessment? Follow the quickstart guide.
+</Card>

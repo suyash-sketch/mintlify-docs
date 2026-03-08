@@ -1,0 +1,521 @@
+---
+title: Frontend Deployment
+description: Build and deploy the React frontend application
+---
+
+## Frontend Overview
+
+The EduMate frontend is a modern React application built with:
+
+- **React 19**: Latest React with concurrent features
+- **Vite**: Fast build tool and dev server
+- **React Router v7**: Client-side routing
+- **Tailwind CSS**: Utility-first CSS framework
+- **Framer Motion**: Smooth animations
+- **Axios**: HTTP client for API calls
+
+The frontend communicates with the FastAPI backend on port 8000.
+
+## Prerequisites
+
+- **Node.js**: 18.x or higher
+- **npm**: 9.x or higher (comes with Node.js)
+- **Backend**: FastAPI server running on port 8000
+
+## Node.js Setup
+
+<Steps>
+  <Step title="Install Node.js">
+    <CodeGroup>
+    
+    ```bash Ubuntu/Debian (NodeSource)
+    # Install Node.js 20.x
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    ```
+    
+    ```bash macOS (Homebrew)
+    brew install node@20
+    ```
+    
+    ```bash Using nvm (Recommended)
+    # Install nvm
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+    
+    # Install Node.js 20
+    nvm install 20
+    nvm use 20
+    ```
+    
+    ```bash Windows
+    # Download installer from https://nodejs.org/
+    # Or use Chocolatey
+    choco install nodejs
+    ```
+    
+    </CodeGroup>
+  </Step>
+
+  <Step title="Verify Installation">
+    ```bash
+    node --version
+    # Expected: v18.x.x or higher
+    
+    npm --version
+    # Expected: 9.x.x or higher
+    ```
+  </Step>
+</Steps>
+
+## Install Dependencies
+
+<Steps>
+  <Step title="Navigate to Frontend Directory">
+    ```bash
+    cd /path/to/edumate/frontend
+    ```
+  </Step>
+
+  <Step title="Install npm Packages">
+    ```bash
+    npm install
+    ```
+    
+    <Info>
+    This will install all dependencies from `package.json`. Installation may take 2-5 minutes.
+    </Info>
+  </Step>
+</Steps>
+
+### Key Dependencies
+
+From `frontend/package.json`:
+
+```json package.json
+{
+  "dependencies": {
+    "axios": "^1.13.5",           // HTTP client
+    "clsx": "^2.1.1",              // Conditional classes
+    "docx": "^9.5.3",              // Word document export
+    "file-saver": "^2.0.5",        // File downloads
+    "framer-motion": "^12.34.1",   // Animations
+    "jspdf": "^4.1.0",             // PDF export
+    "lucide-react": "^0.574.0",    // Icons
+    "react": "^19.2.0",            // React library
+    "react-dom": "^19.2.0",        // React DOM
+    "react-router-dom": "^7.13.0", // Routing
+    "tailwind-merge": "^3.4.1"     // Tailwind utilities
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.24",
+    "eslint": "^9.39.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "vite": "^7.3.1"
+  },
+  "scripts": {
+    "dev": "vite",                 // Development server
+    "build": "vite build",         // Production build
+    "preview": "vite preview",     // Preview production build
+    "lint": "eslint ."             // Linting
+  }
+}
+```
+
+## Development Mode
+
+<Steps>
+  <Step title="Start Development Server">
+    Run the Vite dev server:
+    
+    ```bash
+    npm run dev
+    ```
+    
+    Expected output:
+    ```
+    VITE v7.3.1  ready in 523 ms
+    
+    ➜  Local:   http://localhost:5173/
+    ➜  Network: use --host to expose
+    ➜  press h + enter to show help
+    ```
+  </Step>
+
+  <Step title="Access the Application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:5173
+    ```
+    
+    <Info>
+    Vite's dev server includes hot module replacement (HMR) for instant updates during development.
+    </Info>
+  </Step>
+</Steps>
+
+### Configure API Endpoint
+
+Ensure the frontend points to the correct backend URL. Typically configured in API client files:
+
+```javascript src/api/client.js (example)
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+export default apiClient;
+```
+
+Create a `.env` file in `frontend/` for environment variables:
+
+```bash frontend/.env
+VITE_API_URL=http://localhost:8000
+```
+
+<Tip>
+Vite environment variables must be prefixed with `VITE_` to be exposed to the client.
+</Tip>
+
+## Production Build
+
+<Steps>
+  <Step title="Build for Production">
+    ```bash
+    npm run build
+    ```
+    
+    Expected output:
+    ```
+    vite v7.3.1 building for production...
+    ✓ 2341 modules transformed.
+    dist/index.html                   0.45 kB │ gzip:  0.30 kB
+    dist/assets/index-a3b2c1d4.css    15.32 kB │ gzip:  4.21 kB
+    dist/assets/index-e5f6g7h8.js    342.78 kB │ gzip: 98.45 kB
+    ✓ built in 8.32s
+    ```
+    
+    <Info>
+    The production build is optimized, minified, and placed in the `frontend/dist/` directory.
+    </Info>
+  </Step>
+
+  <Step title="Preview Production Build">
+    Test the production build locally:
+    
+    ```bash
+    npm run preview
+    ```
+    
+    This starts a server on port 4173:
+    ```
+    ➜  Local:   http://localhost:4173/
+    ```
+  </Step>
+</Steps>
+
+## Serving with FastAPI Backend
+
+The FastAPI backend automatically serves the built frontend when the `frontend/dist` directory exists.
+
+From `backend/server.py`:
+
+```python backend/server.py (lines 344-351)
+FRONTEND_DIST_DIR = os.path.join(BASE_DIR, "..", "frontend", "dist")
+
+def _has_react_build() -> bool:
+    return os.path.isdir(FRONTEND_DIST_DIR) and os.path.isfile(
+        os.path.join(FRONTEND_DIST_DIR, "index.html")
+    )
+
+# Serve frontend
+if _has_react_build():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST_DIR, html=True), name="frontend")
+else:
+    @app.get("/")
+    def serve():
+        return {"status": "Server is running", "frontend": "not built"}
+```
+
+<Steps>
+  <Step title="Build Frontend">
+    ```bash
+    cd frontend
+    npm run build
+    ```
+  </Step>
+
+  <Step title="Restart Backend">
+    ```bash
+    # If running manually
+    # Stop with Ctrl+C, then restart
+    cd ..
+    python -m backend.main
+    
+    # If using systemd
+    sudo systemctl restart edumate-backend
+    ```
+  </Step>
+
+  <Step title="Access Application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:8000
+    ```
+    
+    The backend now serves the React frontend at the root path!
+  </Step>
+</Steps>
+
+<Info>
+With this setup, you only need to expose port 8000. The backend serves both the API (`/api/*`) and the frontend (`/*`).
+</Info>
+
+## Production Deployment with Nginx
+
+For production, use Nginx as a reverse proxy:
+
+### Nginx Configuration
+
+```nginx /etc/nginx/sites-available/edumate
+server {
+    listen 80;
+    server_name edumate.example.com;
+
+    # Frontend static files
+    root /path/to/edumate/frontend/dist;
+    index index.html;
+
+    # Frontend SPA routing
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API requests to FastAPI backend
+    location /api {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Proxy chunking and job endpoints
+    location ~ ^/(chunking|chat|job_status) {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Increase timeout for long-running jobs
+        proxy_read_timeout 600s;
+        proxy_connect_timeout 600s;
+    }
+
+    # Static assets caching
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+Enable the site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/edumate /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### HTTPS with Let's Encrypt
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Obtain certificate
+sudo certbot --nginx -d edumate.example.com
+
+# Auto-renewal is configured automatically
+sudo certbot renew --dry-run
+```
+
+## Environment Variables for Production
+
+Create `frontend/.env.production`:
+
+```bash frontend/.env.production
+VITE_API_URL=https://edumate.example.com
+```
+
+Rebuild with production environment:
+
+```bash
+npm run build
+```
+
+## Troubleshooting
+
+### Build Fails
+
+```bash
+# Clear cache and reinstall
+rm -rf node_modules package-lock.json
+npm install
+npm run build
+```
+
+### API Requests Fail (CORS)
+
+If you see CORS errors, ensure the backend allows the frontend origin:
+
+```python backend/server.py
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "https://edumate.example.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+### Blank Page After Build
+
+Check browser console for errors. Common issues:
+
+1. **Wrong base path**: Ensure Vite's base is set correctly in `vite.config.js`
+2. **API URL**: Verify `VITE_API_URL` environment variable
+3. **Missing assets**: Ensure all files are in `frontend/dist/`
+
+```javascript vite.config.js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/',  // Root path when served by FastAPI
+})
+```
+
+### Hot Reload Not Working
+
+```bash
+# Increase file watcher limit (Linux)
+echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf
+sudo sysctl -p
+```
+
+### Port 5173 Already in Use
+
+```bash
+# Use a different port
+npm run dev -- --port 5174
+
+# Or configure in vite.config.js
+export default defineConfig({
+  server: {
+    port: 5174
+  }
+})
+```
+
+## Performance Optimization
+
+### Code Splitting
+
+Vite automatically code-splits routes. Ensure lazy loading is used:
+
+```javascript src/App.jsx (example)
+import { lazy, Suspense } from 'react';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Assessments = lazy(() => import('./pages/Assessments'));
+
+function App() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/assessments" element={<Assessments />} />
+      </Routes>
+    </Suspense>
+  );
+}
+```
+
+### Bundle Analysis
+
+```bash
+# Install bundle analyzer
+npm install --save-dev rollup-plugin-visualizer
+
+# Add to vite.config.js
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    visualizer({ open: true })
+  ]
+})
+
+# Build and view analysis
+npm run build
+```
+
+### Asset Optimization
+
+```javascript vite.config.js
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['framer-motion', 'lucide-react'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000,
+  }
+})
+```
+
+## Deployment Checklist
+
+- [ ] Build frontend: `npm run build`
+- [ ] Test build locally: `npm run preview`
+- [ ] Verify API endpoint in `.env.production`
+- [ ] Check CORS settings in backend
+- [ ] Configure Nginx reverse proxy (production)
+- [ ] Set up HTTPS with Let's Encrypt
+- [ ] Test authentication flow
+- [ ] Test file upload and chunking
+- [ ] Test question generation
+- [ ] Verify all routes work with SPA routing
+- [ ] Check browser console for errors
+- [ ] Test on multiple browsers
+- [ ] Set up monitoring and error tracking
+
+## Next Steps
+
+Your EduMate application is now fully deployed!
+
+- **Monitor Logs**: Check backend logs for errors
+- **Set Up Backups**: Regular database and vector DB backups
+- **Performance Monitoring**: Use tools like Sentry, LogRocket, or New Relic
+- **Scaling**: Consider load balancing and horizontal scaling for production
+
+<Info>
+For questions or issues, refer to the [EduMate documentation](/introduction) or check the troubleshooting sections in each deployment guide.
+</Info>

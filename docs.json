@@ -1,0 +1,113 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "EduMate",
+  "theme": "palm",
+  "colors": {
+    "primary": "#2563eb",
+    "light": "#60a5fa",
+    "dark": "#1e40af"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/suyash-sketch/edu-mate"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/suyash-sketch/edu-mate"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/document-processing",
+              "features/assessment-generation",
+              "features/blooms-taxonomy",
+              "features/rag-system"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/authentication",
+              "guide/uploading-documents",
+              "guide/generating-assessments",
+              "guide/viewing-history",
+              "guide/exporting-assessments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Infrastructure",
+            "pages": [
+              "deployment/overview",
+              "deployment/database-setup",
+              "deployment/vector-db",
+              "deployment/ollama-setup",
+              "deployment/backend",
+              "deployment/frontend"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "deployment/environment-variables",
+              "deployment/models",
+              "deployment/redis-queue"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/signup",
+              "api/auth/login",
+              "api/auth/me",
+              "api/auth/forgot-password",
+              "api/auth/reset-password"
+            ]
+          },
+          {
+            "group": "Document Processing",
+            "pages": [
+              "api/documents/chunking",
+              "api/documents/status"
+            ]
+          },
+          {
+            "group": "Assessments",
+            "pages": [
+              "api/assessments/generate",
+              "api/assessments/job-status",
+              "api/assessments/save",
+              "api/assessments/history",
+              "api/assessments/get"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,61 @@
+---
+title: 'Generate Assessment'
+api: 'POST /chat'
+---
+
+Initiates an asynchronous assessment generation job based on provided content and Bloom's taxonomy requirements.
+
+## Request
+
+### Query Parameters
+
+<ParamField query="query" type="string" required>
+  The chat query or content description from the user. This serves as the basis for generating assessment questions.
+</ParamField>
+
+<ParamField query="collection_name" type="string" required>
+  The Qdrant collection name to search for relevant content. This identifies which knowledge base to generate questions from.
+</ParamField>
+
+<ParamField query="blooms_requirements" type="string" default="5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create">
+  Bloom's taxonomy requirements string specifying the number and type of questions to generate for each cognitive level.
+  
+  Format: `"X remember, Y understand, Z apply, A analyze, B evaluate, C create"`
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string">
+  Job status - will be `"queued"` when successfully initiated.
+</ResponseField>
+
+<ResponseField name="job_id" type="string">
+  Unique identifier for the queued job. Use this to check job status via the [Job Status](/api/assessments/job-status) endpoint.
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST "http://localhost:8000/chat?query=Chapter%203%20Photosynthesis&collection_name=biology_textbook&blooms_requirements=5%20remember%2C%203%20understand%2C%204%20apply%2C%203%20analyze%2C%202%20evaluate%2C%203%20create" \
+  -H "Content-Type: application/json"
+```
+
+## Example Response
+
+```json
+{
+  "status": "queued",
+  "job_id": "abc123-def456-ghi789"
+}
+```
+
+## Notes
+
+- This endpoint queues a background job with a 600-second (10-minute) timeout
+- The job processes the query, searches the specified collection, and generates MCQs based on Bloom's taxonomy requirements
+- Use the returned `job_id` to poll the [Job Status](/api/assessments/job-status) endpoint for completion
+- No authentication is required for this endpoint
+
+## Next Steps
+
+After receiving the `job_id`, poll the [Job Status](/api/assessments/job-status) endpoint to check when generation is complete, then [Save](/api/assessments/save) the assessment to your account.

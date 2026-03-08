@@ -1,0 +1,133 @@
+---
+title: 'Save Assessment'
+api: 'POST /api/assessments/save'
+---
+
+Saves a generated assessment to the authenticated user's account for future access.
+
+## Authentication
+
+This endpoint requires authentication. Include a valid JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your_access_token>
+```
+
+## Request
+
+### Body Parameters
+
+<ParamField body="chapter_name" type="string" required>
+  The name or title of the chapter/topic for this assessment. Used for organizing and identifying saved assessments.
+</ParamField>
+
+<ParamField body="bloom_factors" type="object" required>
+  The Bloom's taxonomy distribution used to generate this assessment. Typically contains counts for each cognitive level.
+  
+  Example:
+  ```json
+  {
+    "remember": 5,
+    "understand": 3,
+    "apply": 4,
+    "analyze": 3,
+    "evaluate": 2,
+    "create": 3
+  }
+  ```
+</ParamField>
+
+<ParamField body="content_json" type="object" required>
+  The complete assessment content returned from the job result. This should be the `result` object from the [Job Status](/api/assessments/job-status) endpoint.
+  
+  Contains the `mcqs` array and any other generated content.
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string">
+  Returns `"saved"` when successfully persisted to database.
+</ResponseField>
+
+<ResponseField name="id" type="integer">
+  The unique database ID of the saved assessment. Use this ID with the [Get Assessment](/api/assessments/get) endpoint to retrieve it later.
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST "http://localhost:8000/api/assessments/save" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -d '{
+    "chapter_name": "Chapter 3: Photosynthesis",
+    "bloom_factors": {
+      "remember": 5,
+      "understand": 3,
+      "apply": 4,
+      "analyze": 3,
+      "evaluate": 2,
+      "create": 3
+    },
+    "content_json": {
+      "mcqs": [
+        {
+          "question": "What is the primary function of chlorophyll?",
+          "options": ["Absorb light", "Store glucose", "Release oxygen", "Transport water"],
+          "correct_answer": "Absorb light",
+          "bloom_level": "remember",
+          "explanation": "Chlorophyll captures light energy from the sun."
+        }
+      ]
+    }
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "status": "saved",
+  "id": 42
+}
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+Returned when the Authorization header is missing or contains an invalid token.
+
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+### 422 Validation Error
+
+Returned when request body is missing required fields or contains invalid data.
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "chapter_name"],
+      "msg": "field required",
+      "type": "value_error.missing"
+    }
+  ]
+}
+```
+
+## Notes
+
+- The assessment is automatically associated with the authenticated user
+- Each saved assessment includes a timestamp (`created_at`) for tracking
+- Saved assessments can be retrieved via [Get Assessment](/api/assessments/get) or listed via [Assessment History](/api/assessments/history)
+- The `content_json` field accepts any valid JSON structure, making it flexible for different assessment formats
+
+## Related Endpoints
+
+- [Assessment History](/api/assessments/history) - List all saved assessments
+- [Get Assessment](/api/assessments/get) - Retrieve a specific saved assessment

@@ -1,0 +1,347 @@
+---
+title: "Bloom's Taxonomy"
+description: 'Understanding the six cognitive levels used to generate comprehensive, pedagogically sound assessments'
+---
+
+## Overview
+
+Bloom's Taxonomy is a hierarchical framework for categorizing educational learning objectives by cognitive complexity. EduMate uses this framework to ensure generated assessments comprehensively evaluate student understanding across all cognitive levels.
+
+## The Six Cognitive Levels
+
+Bloom's Taxonomy progresses from lower-order thinking skills (remembering facts) to higher-order thinking skills (creating new ideas):
+
+<Steps>
+  <Step title="Remember">
+    Recall facts, terms, basic concepts, and answers.
+  </Step>
+  
+  <Step title="Understand">
+    Explain ideas or concepts in your own words.
+  </Step>
+  
+  <Step title="Apply">
+    Use information in new situations and solve problems.
+  </Step>
+  
+  <Step title="Analyze">
+    Draw connections among ideas and distinguish between components.
+  </Step>
+  
+  <Step title="Evaluate">
+    Justify decisions, make judgments, and critique ideas.
+  </Step>
+  
+  <Step title="Create">
+    Produce new or original work, design solutions, and construct theories.
+  </Step>
+</Steps>
+
+## Cognitive Level Breakdown
+
+### 1. Remember
+
+**Definition**: Retrieve relevant knowledge from long-term memory.
+
+**Action Verbs**: Define, list, recall, recognize, retrieve, name, identify, describe
+
+**Example Questions**:
+- "What is the definition of photosynthesis?"
+- "List the three types of rock formations."
+- "Which element has the atomic number 6?"
+
+<Card title="Bloom Level in Code" icon="code">
+```python
+class SingleMCQ(BaseModel):
+    question_no : str
+    bloom_level : str  # "remember"
+    question : str
+    answer_options : List[str]
+    correct_answer : str
+```
+</Card>
+
+---
+
+### 2. Understand
+
+**Definition**: Construct meaning from oral, written, and graphic messages.
+
+**Action Verbs**: Classify, compare, explain, interpret, summarize, infer, paraphrase
+
+**Example Questions**:
+- "Explain how the water cycle works."
+- "What is the difference between mitosis and meiosis?"
+- "Summarize the main idea of Newton's Third Law."
+
+---
+
+### 3. Apply
+
+**Definition**: Carry out or use a procedure in a given situation.
+
+**Action Verbs**: Execute, implement, solve, use, demonstrate, calculate, apply
+
+**Example Questions**:
+- "Calculate the area of a circle with radius 5 cm."
+- "Apply the ideal gas law to solve for pressure."
+- "Use the quadratic formula to find the roots of the equation."
+
+---
+
+### 4. Analyze
+
+**Definition**: Break material into constituent parts and determine how parts relate to one another.
+
+**Action Verbs**: Differentiate, distinguish, examine, compare, contrast, investigate
+
+**Example Questions**:
+- "Compare and contrast DNA and RNA structure."
+- "Analyze the causes of World War I."
+- "What is the relationship between voltage and current in a resistor?"
+
+---
+
+### 5. Evaluate
+
+**Definition**: Make judgments based on criteria and standards.
+
+**Action Verbs**: Assess, critique, judge, justify, recommend, evaluate, argue
+
+**Example Questions**:
+- "Evaluate the effectiveness of renewable energy sources."
+- "Which experimental design is most appropriate and why?"
+- "Critique the validity of the given hypothesis."
+
+---
+
+### 6. Create
+
+**Definition**: Put elements together to form a coherent whole or reorganize into a new pattern.
+
+**Action Verbs**: Design, construct, develop, formulate, plan, compose, generate
+
+**Example Questions**:
+- "Design an experiment to test the effect of temperature on enzyme activity."
+- "Propose a solution to reduce carbon emissions in urban areas."
+- "Create a model that explains the greenhouse effect."
+
+## Default Distribution in EduMate
+
+EduMate uses a carefully balanced distribution across all six levels:
+
+```python
+blooms_requirements = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create"
+```
+
+### Distribution Breakdown
+
+<CardGroup cols={2}>
+  <Card title="Lower-Order Thinking" icon="layer-group">
+    **12 questions (60%)**
+    
+    - 5 Remember
+    - 3 Understand
+    - 4 Apply
+    
+    Foundation knowledge and basic application
+  </Card>
+  
+  <Card title="Higher-Order Thinking" icon="brain">
+    **8 questions (40%)**
+    
+    - 3 Analyze
+    - 2 Evaluate
+    - 3 Create
+    
+    Critical thinking and problem-solving
+  </Card>
+</CardGroup>
+
+### Why This Distribution?
+
+<Accordion title="Progressive Difficulty">
+  The distribution follows educational best practices:
+  - **Foundation first**: More remember/understand questions establish baseline knowledge
+  - **Application focus**: Apply questions bridge theory and practice
+  - **Higher-order synthesis**: Analyze, evaluate, and create questions challenge advanced thinking
+</Accordion>
+
+<Accordion title="Comprehensive Coverage">
+  Including all six levels ensures:
+  - Students can't pass by memorization alone
+  - Assessment identifies both knowledge gaps and critical thinking abilities
+  - Feedback is actionable across the full learning spectrum
+</Accordion>
+
+<Accordion title="Time Efficiency">
+  The 20-question format:
+  - Can be completed in 30-40 minutes
+  - Provides statistically meaningful results
+  - Balances depth with assessment duration
+</Accordion>
+
+## Implementation in Code
+
+The Bloom's distribution is enforced in the prompt engineering:
+
+```python
+def prompt_modelling(context, blooms_requirements: str):
+    SYSTEM_PROMPT = f"""
+        You are a Subject Matter Expert designing a professional, standalone exam.
+        
+        ...
+        
+        4. **BLOOM'S TAXONOMY**: Generate questions according to these counts: {blooms_requirements}.
+           For each question, set the `bloom_level` field to exactly one of: remember, understand, apply, analyze, evaluate, create — matching the cognitive level of that question.
+        
+        ...
+    """
+    return SYSTEM_PROMPT
+```
+
+The LLM is instructed to:
+1. Generate the exact number of questions for each level
+2. Set the `bloom_level` field to the appropriate cognitive level
+3. Ensure question complexity matches the specified level
+
+## Question Schema with Bloom Level
+
+```python
+class SingleMCQ(BaseModel):
+    question_no : str
+    bloom_level : str  # "remember", "understand", "apply", "analyze", "evaluate", "create"
+    question : str
+    answer_options : List[str]
+    correct_answer : str
+    explaination : Optional[str]
+```
+
+Each generated question explicitly tags its cognitive level, enabling:
+
+- **Analytics**: Track performance across Bloom levels
+- **Adaptive learning**: Identify which cognitive skills need improvement
+- **Curriculum alignment**: Ensure assessments match learning objectives
+
+<Info>
+The `bloom_level` field is stored in the database, allowing instructors to analyze student performance patterns across cognitive levels over time.
+</Info>
+
+## Customizable Distribution
+
+While the default distribution works for most subjects, EduMate supports custom distributions:
+
+```python
+def search_and_ask(user_query, collection_name: str, 
+                   blooms_requirements: str = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create", 
+                   top_k = 5):
+    ...
+```
+
+Educators can specify different requirements for different subjects:
+
+<CodeGroup>
+```python Introductory Course
+# More focus on foundational knowledge
+blooms_requirements = "8 remember, 5 understand, 4 apply, 2 analyze, 1 evaluate, 0 create"
+```
+
+```python Advanced Course
+# More focus on higher-order thinking
+blooms_requirements = "2 remember, 3 understand, 4 apply, 4 analyze, 3 evaluate, 4 create"
+```
+
+```python Skills-Based Course
+# Heavy emphasis on application
+blooms_requirements = "3 remember, 3 understand, 8 apply, 3 analyze, 2 evaluate, 1 create"
+```
+</CodeGroup>
+
+## Database Storage
+
+Bloom's distribution is stored alongside each assessment:
+
+```python
+class Assessment(Base):
+    __tablename__ = "assessments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    chapter_name = Column(String)
+    bloom_factors = Column(JSONB)  # Stores {remember: 5, apply: 4, etc.}
+    content_json = Column(JSONB)   # Stores questions with bloom_level field
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+The `bloom_factors` column stores the distribution used, enabling:
+
+- Reproducing assessments with the same distribution
+- Analyzing which distributions work best for different topics
+- Tracking curriculum coverage over time
+
+<Tip>
+The JSONB format allows flexible storage of different distribution schemas without requiring database migrations.
+</Tip>
+
+## Pedagogical Benefits
+
+<CardGroup cols={2}>
+  <Card title="Comprehensive Assessment" icon="clipboard-check">
+    Evaluates the full range of student understanding from basic recall to creative problem-solving.
+  </Card>
+  
+  <Card title="Targeted Feedback" icon="bullseye">
+    Identifies specific cognitive levels where students struggle, enabling focused remediation.
+  </Card>
+  
+  <Card title="Learning Progression" icon="chart-line">
+    Scaffolds assessment difficulty from foundational to advanced, supporting natural learning progression.
+  </Card>
+  
+  <Card title="Curriculum Alignment" icon="sitemap">
+    Ensures assessments match intended learning outcomes and educational standards.
+  </Card>
+</CardGroup>
+
+## Example: Full Assessment Distribution
+
+A typical 20-question assessment generated by EduMate:
+
+```json
+{
+  "mcqs": [
+    {"question_no": "1", "bloom_level": "remember", "question": "..."},
+    {"question_no": "2", "bloom_level": "remember", "question": "..."},
+    {"question_no": "3", "bloom_level": "remember", "question": "..."},
+    {"question_no": "4", "bloom_level": "remember", "question": "..."},
+    {"question_no": "5", "bloom_level": "remember", "question": "..."},
+    {"question_no": "6", "bloom_level": "understand", "question": "..."},
+    {"question_no": "7", "bloom_level": "understand", "question": "..."},
+    {"question_no": "8", "bloom_level": "understand", "question": "..."},
+    {"question_no": "9", "bloom_level": "apply", "question": "..."},
+    {"question_no": "10", "bloom_level": "apply", "question": "..."},
+    {"question_no": "11", "bloom_level": "apply", "question": "..."},
+    {"question_no": "12", "bloom_level": "apply", "question": "..."},
+    {"question_no": "13", "bloom_level": "analyze", "question": "..."},
+    {"question_no": "14", "bloom_level": "analyze", "question": "..."},
+    {"question_no": "15", "bloom_level": "analyze", "question": "..."},
+    {"question_no": "16", "bloom_level": "evaluate", "question": "..."},
+    {"question_no": "17", "bloom_level": "evaluate", "question": "..."},
+    {"question_no": "18", "bloom_level": "create", "question": "..."},
+    {"question_no": "19", "bloom_level": "create", "question": "..."},
+    {"question_no": "20", "bloom_level": "create", "question": "..."}
+  ]
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Assessment Generation" icon="clipboard-question" href="/features/assessment-generation">
+    Learn how Bloom's levels are enforced during question generation
+  </Card>
+  
+  <Card title="RAG System" icon="brain" href="/features/rag-system">
+    Understand how context retrieval supports multi-level questioning
+  </Card>
+</CardGroup>

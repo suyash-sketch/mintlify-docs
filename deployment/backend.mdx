@@ -1,0 +1,622 @@
+---
+title: Backend Deployment
+description: Deploy the FastAPI backend server and RQ workers
+---
+
+## Backend Overview
+
+The EduMate backend is built with **FastAPI** and provides:
+
+- RESTful API for document upload, chunking, and question generation
+- User authentication with JWT tokens
+- PostgreSQL integration for user and assessment data
+- Redis Queue (RQ) for background job processing
+- Integration with Qdrant, Ollama, and Gemini API
+
+The backend runs on **port 8000** using **Uvicorn** as the ASGI server.
+
+## Prerequisites
+
+Before deploying the backend, ensure the following services are running:
+
+- [x] PostgreSQL (port 5432)
+- [x] Redis (port 6379)
+- [x] Qdrant (port 6333)
+- [x] Ollama (port 11434)
+
+## Python Environment Setup
+
+<Steps>
+  <Step title="Install Python">
+    EduMate requires Python 3.9 or higher:
+    
+    ```bash
+    python3 --version
+    # Expected: Python 3.9.x or higher
+    ```
+    
+    If not installed:
+    <CodeGroup>
+    
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install python3 python3-pip python3-venv
+    ```
+    
+    ```bash macOS
+    brew install python@3.11
+    ```
+    
+    ```bash Fedora/RHEL
+    sudo dnf install python3 python3-pip
+    ```
+    
+    </CodeGroup>
+  </Step>
+
+  <Step title="Create Virtual Environment">
+    Navigate to the project directory and create a virtual environment:
+    
+    ```bash
+    cd /path/to/edumate
+    python3 -m venv venv
+    ```
+  </Step>
+
+  <Step title="Activate Virtual Environment">
+    <CodeGroup>
+    
+    ```bash Linux/macOS
+    source venv/bin/activate
+    ```
+    
+    ```bash Windows
+    venv\Scripts\activate
+    ```
+    
+    </CodeGroup>
+    
+    Your prompt should now show `(venv)`.
+  </Step>
+</Steps>
+
+## Install Dependencies
+
+The backend dependencies are listed in `requirements.txt`:
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### Key Dependencies
+
+From `requirements.txt`:
+
+```txt requirements.txt
+# FastAPI and server
+fastapi==0.124.4
+fastapi-cli==0.0.16
+uvicorn  # ASGI server
+python-multipart==0.0.22  # File uploads
+
+# Database
+psycopg2-binary==2.9.11  # PostgreSQL adapter
+
+# Authentication
+PyJWT==2.8.0
+passlib==1.7.4
+bcrypt==5.0.0
+
+# AI and LangChain
+langchain==1.2.0
+langchain-ollama==1.0.1
+langchain-qdrant==1.1.0
+langchain-text-splitters==1.1.0
+langchain-google-genai==4.1.2
+google-genai==1.56.0
+
+# Vector DB and embeddings
+qdrant-client==1.16.2
+ollama==0.6.1
+openai==2.11  # For Gemini API compatibility
+
+# Document processing
+pypdf==6.4.2
+
+# Queue
+redis==7.1.0
+rq==2.6.1
+
+# Utilities
+pydantic==2.12.5
+numpy==2.4.0
+```
+
+<Info>
+Installation may take 5-10 minutes depending on your internet connection and system performance.
+</Info>
+
+## Configuration
+
+### Database Configuration
+
+The database connection is configured in `backend/database.py`:
+
+```python backend/database.py
+SQLALCHEMY_DATABASE_URL = "postgresql://edumate_user:edumate_pass@localhost:5432/edumate"
+```
+
+<Warning>
+For production, change the default password and consider using environment variables:
+
+```python
+import os
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://edumate_user:edumate_pass@localhost:5432/edumate"
+)
+```
+</Warning>
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash .env
+# Gemini API (Required for question generation)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: Override defaults
+DATABASE_URL=postgresql://edumate_user:edumate_pass@localhost:5432/edumate
+REDIS_HOST=localhost
+REDIS_PORT=6379
+QDRANT_URL=http://localhost:6333
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+<Tip>
+Obtain a Gemini API key from [Google AI Studio](https://aistudio.google.com/app/apikey).
+</Tip>
+
+### JWT Secret Key
+
+The JWT secret is configured in `backend/server.py`:
+
+```python backend/server.py
+SECRET_KEY = "super_secret_edumate_key"  # Change this in production!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
+```
+
+<Warning>
+**Production Security**: Generate a strong random secret key:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Use this value for `SECRET_KEY` in production.
+</Warning>
+
+## Start Redis Queue Worker
+
+EduMate uses Redis Queue (RQ) for background processing of document chunking and question generation.
+
+<Steps>
+  <Step title="Install Redis">
+    <CodeGroup>
+    
+    ```bash Ubuntu/Debian
+    sudo apt install redis-server
+    sudo systemctl start redis
+    sudo systemctl enable redis
+    ```
+    
+    ```bash macOS
+    brew install redis
+    brew services start redis
+    ```
+    
+    ```bash Verify Redis
+    redis-cli ping
+    # Expected: PONG
+    ```
+    
+    </CodeGroup>
+  </Step>
+
+  <Step title="Start RQ Worker">
+    In a separate terminal (with venv activated), start the worker:
+    
+    ```bash
+    rq worker
+    ```
+    
+    Expected output:
+    ```
+    15:30:45 Worker rq:worker:hostname.12345 started
+    15:30:45 Subscribing to channel rq:worker:heartbeat
+    15:30:45 default: Job OK (default)
+    ```
+    
+    <Info>
+    The worker listens on Redis (localhost:6379) for jobs from the `/chunking` and `/chat` endpoints.
+    </Info>
+  </Step>
+</Steps>
+
+The RQ configuration is in `backend/client/rq_client.py`:
+
+```python backend/client/rq_client.py
+from redis import Redis
+from rq import Queue
+
+queue = Queue(
+    connection=Redis(
+        host='localhost',
+        port="6379",
+    )
+)
+```
+
+## Run the Backend Server
+
+<Steps>
+  <Step title="Navigate to Backend Directory">
+    ```bash
+    cd /path/to/edumate/backend
+    ```
+  </Step>
+
+  <Step title="Start FastAPI Server">
+    The entry point is `backend/main.py`:
+    
+    ```python backend/main.py
+    from .server import app
+    import uvicorn
+    
+    def main():
+        uvicorn.run(app, port=8000, host="0.0.0.0")
+    
+    main()
+    ```
+    
+    Run the server:
+    
+    ```bash
+    # Option 1: Run main.py directly
+    python -m backend.main
+    
+    # Option 2: Use uvicorn directly
+    uvicorn backend.server:app --host 0.0.0.0 --port 8000 --reload
+    ```
+    
+    <Info>
+    The `--reload` flag enables auto-reload during development. Remove it for production.
+    </Info>
+  </Step>
+
+  <Step title="Verify Server is Running">
+    The server should start on port 8000:
+    
+    ```bash
+    curl http://localhost:8000/
+    ```
+    
+    Expected response (if frontend is not built):
+    ```json
+    {
+      "status": "Server is running",
+      "frontend": "not built (run: cd frontend && npm run build)"
+    }
+    ```
+  </Step>
+</Steps>
+
+## Test API Endpoints
+
+### Health Check
+
+```bash
+curl http://localhost:8000/
+```
+
+### Create User Account
+
+```bash
+curl -X POST http://localhost:8000/api/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test User",
+    "email": "test@example.com",
+    "password": "testpassword123"
+  }'
+```
+
+Expected response:
+```json
+{
+  "id": 1,
+  "name": "Test User",
+  "email": "test@example.com"
+}
+```
+
+### Login
+
+```bash
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=test@example.com&password=testpassword123"
+```
+
+Expected response:
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+### Upload Document
+
+```bash
+TOKEN="your_access_token_here"
+
+curl -X POST http://localhost:8000/chunking \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@sample.pdf"
+```
+
+Expected response:
+```json
+{
+  "status": "queued",
+  "job_id": "abc123...",
+  "collection_name": "edu_mate_def456..."
+}
+```
+
+### Check Chunking Status
+
+```bash
+curl "http://localhost:8000/chunking/status?job_id=abc123..."
+```
+
+Responses:
+```json
+// While processing
+{"status": "started"}
+
+// When complete
+{
+  "status": "chunked",
+  "result": {
+    "stored": true,
+    "chunks": 42,
+    "source": "/path/to/sample.pdf",
+    "collection_name": "edu_mate_def456..."
+  }
+}
+```
+
+### Generate Questions
+
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "query=Generate MCQs on this topic" \
+  -d "collection_name=edu_mate_def456..." \
+  -d "blooms_requirements=5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create"
+```
+
+Expected response:
+```json
+{
+  "status": "queued",
+  "job_id": "xyz789..."
+}
+```
+
+## Database Schema Initialization
+
+On first run, FastAPI automatically creates database tables using SQLAlchemy:
+
+```python backend/server.py
+from .database import engine
+from . import models
+
+# Create tables
+models.Base.metadata.create_all(bind=engine)
+```
+
+Verify tables were created:
+
+```bash
+psql -U edumate_user -d edumate -c "\dt"
+```
+
+Expected output:
+```
+          List of relations
+ Schema |    Name     | Type  |    Owner
+--------+-------------+-------+--------------
+ public | assessments | table | edumate_user
+ public | users       | table | edumate_user
+```
+
+## Production Deployment
+
+### Using Gunicorn
+
+For production, use Gunicorn with Uvicorn workers:
+
+```bash
+# Install Gunicorn
+pip install gunicorn
+
+# Run with 4 worker processes
+gunicorn backend.server:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --access-logfile - \
+  --error-logfile -
+```
+
+### Using Systemd Service
+
+Create a systemd service file:
+
+```ini /etc/systemd/system/edumate-backend.service
+[Unit]
+Description=EduMate FastAPI Backend
+After=network.target postgresql.service redis.service
+
+[Service]
+Type=notify
+User=edumate
+Group=edumate
+WorkingDirectory=/path/to/edumate
+Environment="PATH=/path/to/edumate/venv/bin"
+ExecStart=/path/to/edumate/venv/bin/gunicorn backend.server:app \
+  --workers 4 \
+  --worker-class uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable edumate-backend
+sudo systemctl start edumate-backend
+sudo systemctl status edumate-backend
+```
+
+### RQ Worker Service
+
+Create a systemd service for the RQ worker:
+
+```ini /etc/systemd/system/edumate-worker.service
+[Unit]
+Description=EduMate RQ Worker
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=edumate
+Group=edumate
+WorkingDirectory=/path/to/edumate
+Environment="PATH=/path/to/edumate/venv/bin"
+ExecStart=/path/to/edumate/venv/bin/rq worker
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable edumate-worker
+sudo systemctl start edumate-worker
+```
+
+## Troubleshooting
+
+### Port 8000 Already in Use
+
+```bash
+# Find process using port 8000
+sudo lsof -i :8000
+
+# Kill the process
+sudo kill -9 <PID>
+
+# Or use a different port
+uvicorn backend.server:app --port 8001
+```
+
+### Database Connection Error
+
+```bash
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Test connection manually
+psql -U edumate_user -d edumate -h localhost
+
+# Verify connection string in backend/database.py
+```
+
+### Redis Connection Error
+
+```bash
+# Check Redis is running
+redis-cli ping
+
+# Restart Redis
+sudo systemctl restart redis
+```
+
+### Import Errors
+
+```bash
+# Ensure virtual environment is activated
+source venv/bin/activate
+
+# Reinstall dependencies
+pip install -r requirements.txt
+
+# Run from project root, not backend/
+cd /path/to/edumate
+python -m backend.main
+```
+
+### RQ Worker Not Processing Jobs
+
+```bash
+# Check worker is running
+ps aux | grep "rq worker"
+
+# Check Redis queue
+redis-cli
+> KEYS *
+> LLEN rq:queue:default
+
+# Restart worker
+pkill -f "rq worker"
+rq worker
+```
+
+## Logging
+
+Enable detailed logging for debugging:
+
+```python backend/main.py
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+uvicorn.run(app, port=8000, host="0.0.0.0", log_level="debug")
+```
+
+## Next Steps
+
+With the backend running, deploy the frontend:
+
+- [Frontend Deployment](/deployment/frontend) - Build and serve the React application
+
+<Info>
+The backend serves the built React frontend from `/` when the `frontend/dist` directory exists. See `backend/server.py:344-351` for the static file mounting logic.
+</Info>

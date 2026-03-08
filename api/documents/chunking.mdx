@@ -1,0 +1,85 @@
+---
+title: "Chunk Document"
+api: "POST /chunking"
+description: "Upload and process a PDF document for chunking and indexing into a vector database"
+---
+
+## Overview
+
+This endpoint accepts a PDF file upload and queues an asynchronous background job to chunk the document into smaller segments and index them into a Qdrant vector collection. The document is processed in the background, and you can track the job status using the returned `job_id`.
+
+## Request
+
+### Body Parameters
+
+<ParamField body="file" type="file">
+  PDF file to upload for chunking and indexing. The file will be saved and processed asynchronously.
+</ParamField>
+
+<ParamField query="doc_path" type="string">
+  (Legacy) Path to a local PDF file or folder. Use `file` parameter for uploads instead.
+</ParamField>
+
+<Warning>
+You must provide either `file` (for uploads) or `doc_path` (for legacy local paths). If neither is provided, the request will fail.
+</Warning>
+
+## Response
+
+<ResponseField name="status" type="string" required>
+  Current status of the job. Returns `"queued"` when successfully submitted, or `"failed"` if the request is invalid.
+</ResponseField>
+
+<ResponseField name="job_id" type="string">
+  Unique identifier for the background processing job. Use this with the `/chunking/status` endpoint to check progress.
+</ResponseField>
+
+<ResponseField name="collection_name" type="string">
+  Generated Qdrant collection name where the document chunks will be stored. Format: `edu_mate_<uuid>`
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if the request failed due to missing parameters.
+</ResponseField>
+
+## Example
+
+### Upload a PDF file
+
+```bash
+curl -X POST http://localhost:8000/chunking \
+  -F "file=@/path/to/document.pdf"
+```
+
+### Response (Success)
+
+```json
+{
+  "status": "queued",
+  "job_id": "a3f7b9c1-4e5d-6789-0abc-def123456789",
+  "collection_name": "edu_mate_a1b2c3d4e5f67890abcdef1234567890"
+}
+```
+
+### Response (Error)
+
+```json
+{
+  "status": "failed",
+  "error": "Provide either 'file' (upload) or 'doc_path' (legacy)."
+}
+```
+
+## Processing Details
+
+<Expandable title="Background Job Processing">
+  - The uploaded file is saved to the server with a unique filename
+  - A background job is enqueued with a 600-second timeout
+  - The document is chunked using the configured chunking strategy
+  - Chunks are embedded and stored in the Qdrant vector database
+  - Job status can be monitored via the `/chunking/status` endpoint
+</Expandable>
+
+<Note>
+The chunking process runs asynchronously. Poll the `/chunking/status` endpoint with the returned `job_id` to check when processing is complete.
+</Note>

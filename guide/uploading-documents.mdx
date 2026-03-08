@@ -1,0 +1,217 @@
+---
+title: 'Uploading Documents'
+description: 'Learn how to upload PDF materials and prepare them for AI assessment generation'
+icon: 'file-arrow-up'
+---
+
+## Overview
+
+Before EduMate can generate assessments, you need to upload the source material. EduMate accepts PDF documents containing the content you want to create questions from, such as textbook chapters, lecture notes, or course materials.
+
+## Supported File Format
+
+EduMate currently supports:
+- **File Type**: PDF only (`.pdf`)
+- **File Size**: Up to 10 MB
+- **Content**: Text-based PDFs (scanned images may not work optimally)
+
+<Warning>
+  Only PDF files are accepted. If you have materials in other formats (DOCX, PPTX, etc.), convert them to PDF before uploading.
+</Warning>
+
+## How to Upload a Document
+
+There are two ways to upload your document:
+
+### Method 1: Drag and Drop
+
+<Steps>
+  <Step title="Navigate to Dashboard">
+    Log in to EduMate and go to the Dashboard page.
+  </Step>
+  
+  <Step title="Locate Upload Area">
+    Find the file upload section under "Step 1: Upload Material" in the "Create New Assessment" card.
+  </Step>
+  
+  <Step title="Drag Your File">
+    Drag your PDF file from your computer and drop it onto the upload area. You'll see the area highlight when you hover over it with a file.
+  </Step>
+  
+  <Step title="Wait for Processing">
+    The file will automatically begin uploading and processing once dropped.
+  </Step>
+</Steps>
+
+### Method 2: Click to Browse
+
+<Steps>
+  <Step title="Click Upload Area">
+    Click anywhere on the upload box that says "Drag & drop or click to upload".
+  </Step>
+  
+  <Step title="Select File">
+    Your computer's file browser will open. Navigate to your PDF file and select it.
+  </Step>
+  
+  <Step title="Confirm Selection">
+    Click "Open" or "Select" to begin the upload process.
+  </Step>
+</Steps>
+
+## What Happens During Processing
+
+Once you upload a document, EduMate performs several automated steps:
+
+<Steps>
+  <Step title="File Validation">
+    The system checks that your file is a valid PDF and within the size limit.
+  </Step>
+  
+  <Step title="Upload to Server">
+    Your document is securely transmitted to EduMate's servers.
+    
+    <Info>
+      During upload, you'll see a loading spinner with the message "Uploading & processing PDF..."
+    </Info>
+  </Step>
+  
+  <Step title="Document Chunking">
+    The backend processes your PDF by:
+    - Extracting text content
+    - Breaking it into manageable chunks
+    - Creating embeddings for AI retrieval
+    - Storing chunks in a vector database (collection)
+    
+    <Note>
+      This "chunking" process prepares your document for AI-powered question generation by organizing the content in a way the AI can efficiently search and understand.
+    </Note>
+  </Step>
+  
+  <Step title="Ready for Generation">
+    Once processing completes, you'll see a success message: "Document ready for AI generation" with a sparkle icon.
+  </Step>
+</Steps>
+
+## Understanding Processing Status
+
+### Status Indicators
+
+| Visual Indicator | Meaning |
+|-----------------|----------|
+| **Upload icon** | Ready to accept a file |
+| **Loading spinner** | Currently uploading or processing |
+| **Green checkmark with document icon** | Successfully uploaded and processed |
+| **Red alert icon** | Error occurred |
+
+### Processing Time
+
+The chunking process typically takes:
+- **Small documents (1-5 pages)**: 5-15 seconds
+- **Medium documents (6-20 pages)**: 15-45 seconds
+- **Large documents (20+ pages)**: 45-90 seconds
+
+<Tip>
+  EduMate polls the backend every 2 seconds to check if processing is complete. You don't need to refresh the page—status updates appear automatically.
+</Tip>
+
+## Managing Uploaded Files
+
+### Viewing File Details
+
+Once uploaded, you'll see:
+- File name (truncated if too long)
+- File size in megabytes
+- Status: "PDF Document uploaded"
+
+### Removing a File
+
+If you need to upload a different document:
+
+<Steps>
+  <Step title="Click Remove Button">
+    Click the "Remove" link (with an X icon) below the file details.
+  </Step>
+  
+  <Step title="Upload New File">
+    The upload area will reset, allowing you to select a different document.
+  </Step>
+</Steps>
+
+<Warning>
+  Removing a file clears the processed collection. You'll need to re-upload and wait for processing to complete before generating assessments.
+</Warning>
+
+## Troubleshooting Upload Issues
+
+### Common Errors
+
+<AccordionGroup>
+  <Accordion title="Only PDF files are allowed">
+    **Cause**: You attempted to upload a non-PDF file.
+    
+    **Solution**: Convert your document to PDF format using:
+    - Microsoft Word: File → Save As → PDF
+    - Google Docs: File → Download → PDF Document
+    - Online converters: CloudConvert, Adobe online tools
+  </Accordion>
+  
+  <Accordion title="Upload failed. Please try again.">
+    **Cause**: Network interruption or server error.
+    
+    **Solution**:
+    - Check your internet connection
+    - Verify the file isn't corrupted
+    - Try uploading again
+    - If the problem persists, try a smaller file or contact support
+  </Accordion>
+  
+  <Accordion title="File too large">
+    **Cause**: Your PDF exceeds the 10 MB limit.
+    
+    **Solution**:
+    - Compress the PDF using online tools
+    - Split into multiple smaller documents
+    - Remove high-resolution images if possible
+  </Accordion>
+  
+  <Accordion title="Processing failed">
+    **Cause**: The backend couldn't process your PDF's text content.
+    
+    **Solution**:
+    - Ensure the PDF contains selectable text (not scanned images)
+    - Try re-saving or re-exporting the PDF
+    - Use OCR software if working with scanned documents
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Text-Based PDFs" icon="file-lines">
+    Ensure your PDF contains actual text, not just images of text. This allows better content extraction.
+  </Card>
+  
+  <Card title="Organize Content" icon="list-check">
+    Well-structured documents with clear headings and sections produce better results.
+  </Card>
+  
+  <Card title="Optimal Size" icon="gauge">
+    Documents between 5-50 pages work best. Very short documents may not have enough content for diverse questions.
+  </Card>
+  
+  <Card title="Clean Formatting" icon="broom">
+    Remove unnecessary headers, footers, and annotations for cleaner content extraction.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Once your document is successfully uploaded and processed:
+1. [Configure Bloom's Taxonomy distribution](/guide/generating-assessments)
+2. Enter a chapter or module name
+3. Generate your AI-powered assessment
+
+<Info>
+  Each uploaded document creates a unique collection in the vector database. You can generate multiple assessments from the same uploaded document without re-uploading.
+</Info>

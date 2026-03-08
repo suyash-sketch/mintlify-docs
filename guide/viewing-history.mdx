@@ -1,0 +1,275 @@
+---
+title: 'Viewing History'
+description: 'Access and manage your previously generated assessments'
+icon: 'clock-rotate-left'
+---
+
+## Overview
+
+EduMate automatically saves every assessment you generate to your personal history. This allows you to review, download, and reuse assessments without regenerating them.
+
+## Accessing Assessment History
+
+<Steps>
+  <Step title="Navigate to History">
+    Click the **"History"** button in the sidebar (left navigation panel). It's marked with a clock icon.
+  </Step>
+  
+  <Step title="View Your Assessments">
+    The History page displays a table of all your saved assessments, showing:
+    - Assessment name (chapter/module name)
+    - Date created
+    - Number of questions
+    - Status
+    - Available actions
+  </Step>
+</Steps>
+
+## Understanding the History Table
+
+### Column Breakdown
+
+| Column | Description |
+|--------|-------------|
+| **Assessment Name** | The chapter or module name you entered during generation |
+| **Date** | When the assessment was created (e.g., "Jan 15, 2026") |
+| **Questions** | Total number of MCQs in this assessment |
+| **Status** | Current state (typically "completed" with a green indicator) |
+| **Actions** | Quick access buttons: "View" and "Download" |
+
+<Info>
+  Assessments are listed in reverse chronological order—your most recent generations appear at the top.
+</Info>
+
+## Viewing a Saved Assessment
+
+To review the full content of a past assessment:
+
+<Steps>
+  <Step title="Find Your Assessment">
+    Locate the assessment in the history table by name or date.
+  </Step>
+  
+  <Step title="Click View Button">
+    Click the **"View"** button (purple, with an eye icon) in the Actions column.
+    
+    <Tip>
+      The View button is styled in violet/purple to distinguish it from the Download button.
+    </Tip>
+  </Step>
+  
+  <Step title="Assessment Modal Opens">
+    A slide-over panel appears from the right side of the screen, displaying:
+    - Assessment name in the header
+    - Full interactive assessment viewer
+    - Toggle between Question Paper and Answer Key
+    - All original formatting and Bloom's level badges
+  </Step>
+  
+  <Step title="Explore Content">
+    Within the modal, you can:
+    - Switch between Question Paper and Answer Key views
+    - Expand explanations (in Answer Key mode)
+    - Download directly from the viewer
+    - Scroll through all questions
+  </Step>
+  
+  <Step title="Close Modal">
+    Click the **X** button in the top-right corner or click outside the panel to close the viewer.
+  </Step>
+</Steps>
+
+<Note>
+  The assessment viewer in History shows the same interactive interface you saw immediately after generation, preserving all functionality.
+</Note>
+
+## Downloading from History
+
+You can download assessments directly from the history table:
+
+<Steps>
+  <Step title="Locate Assessment">
+    Find the assessment you want to download in the history table.
+  </Step>
+  
+  <Step title="Click Download Button">
+    Click the **"Download"** button (blue/indigo, with a download icon) in the Actions column.
+    
+    <Info>
+      A loading spinner appears on the button while the document is being generated: "⟳ Download"
+    </Info>
+  </Step>
+  
+  <Step title="Automatic Download">
+    The Question Paper is automatically generated as a DOCX file and downloaded to your computer:
+    - Filename: `EduMate_Question_Paper.docx`
+    - Format: Professional Microsoft Word document
+    - Content: Questions only (no answers)
+  </Step>
+</Steps>
+
+<Warning>
+  The Download button in the history table exports only the Question Paper. To download the Answer Key, open the assessment in the viewer and use the in-viewer download options.
+</Warning>
+
+## Assessment Status Indicators
+
+Status badges show the current state of each assessment:
+
+| Status | Appearance | Meaning |
+|--------|-----------|----------|
+| **Completed** | Green dot + "completed" | Successfully generated and ready to use |
+| **Processing** | Yellow dot + "processing" | Currently being generated (rare in history) |
+| **Failed** | Red dot + "failed" | Generation encountered an error |
+
+<Tip>
+  Only successfully completed assessments appear in your history. Failed generations are not saved.
+</Tip>
+
+## History Page States
+
+### Loading State
+
+When you first open the History page:
+- A loading spinner appears with "Loading your assessment history..."
+- The system fetches your saved assessments from the database
+- Typically loads within 1-2 seconds
+
+### Empty State
+
+If you haven't generated any assessments yet:
+- A centered message displays: "No assessments yet. Generate your first one!"
+- A clock icon appears in light gray
+- This is normal for new accounts
+
+### Error State
+
+If assessments fail to load:
+- A red error message appears: "Failed to load history"
+- An alert triangle icon is shown
+- Try refreshing the page or check your internet connection
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Descriptive Names" icon="tag">
+    Use clear, specific chapter names when generating assessments to make them easy to find later in history.
+  </Card>
+  
+  <Card title="Regular Reviews" icon="clipboard-check">
+    Periodically review saved assessments to maintain quality and relevance for your courses.
+  </Card>
+  
+  <Card title="Organize by Date" icon="calendar">
+    The chronological list helps you track when assessments were created for course planning.
+  </Card>
+  
+  <Card title="Quick Access" icon="bolt">
+    Use history instead of regenerating assessments to save time and maintain consistency.
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### What Gets Saved
+
+Each assessment in your history includes:
+- Chapter/module name
+- Creation timestamp
+- Complete question content (JSON format)
+- Bloom's taxonomy distribution used
+- Number of questions
+- All MCQs with options, correct answers, and explanations
+
+### Authentication & Privacy
+
+<Info>
+  Your assessment history is private and associated with your account. Only you can view and access your saved assessments.
+</Info>
+
+The system uses your authentication token to:
+- Fetch only your assessments
+- Ensure secure access
+- Prevent unauthorized viewing
+
+### Database Storage
+
+Assessments are stored in the backend database:
+- Each assessment is assigned a unique ID
+- Full content is stored as JSON
+- Metadata is indexed for quick retrieval
+- No automatic deletion—assessments remain until manually removed (if deletion is implemented)
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="History page shows no assessments but I generated some">
+    **Possible causes**:
+    - You're logged into a different account
+    - Assessments were generated before history feature was implemented
+    - Database connection issue
+    
+    **Try**:
+    - Verify you're logged in with the correct email
+    - Generate a new test assessment to confirm saving works
+    - Refresh the page
+  </Accordion>
+  
+  <Accordion title="View button shows loading forever">
+    **Cause**: Network issue or database query timeout.
+    
+    **Solution**:
+    - Close the modal and try again
+    - Check your internet connection
+    - Refresh the entire page
+    - If persistent, the assessment data may be corrupted
+  </Accordion>
+  
+  <Accordion title="Download button doesn't work">
+    **Check**:
+    - Pop-up blockers might be preventing the download
+    - Browser download settings
+    - Available disk space
+    
+    **Alternative**: Use the View modal and download from within the assessment viewer.
+  </Accordion>
+  
+  <Accordion title="Wrong assessment opens when I click View">
+    **Rare bug**: Try:
+    - Refreshing the page
+    - Closing and reopening the History page
+    - Clearing browser cache
+  </Accordion>
+</AccordionGroup>
+
+## Limitations & Future Features
+
+### Current Limitations
+
+- No search or filter functionality yet
+- Cannot edit or rename assessments after generation
+- No manual deletion option (assessments are permanent)
+- Cannot share assessments with other users
+
+### Planned Features
+
+<Note>
+  The following features may be added in future updates:
+  - Search and filter by name or date
+  - Sort by name, date, or question count
+  - Delete unwanted assessments
+  - Rename assessments
+  - Export multiple assessments at once
+  - Share assessments with colleagues
+</Note>
+
+## Next Steps
+
+From your history, you can:
+- [Download assessments in various formats](/guide/exporting-assessments)
+- Return to the Dashboard to create new assessments
+- Review Question Papers and Answer Keys for quality assurance
+
+<Tip>
+  Bookmark or save the History page for quick access to your most frequently used assessments.
+</Tip>

@@ -1,0 +1,112 @@
+---
+title: "Introduction"
+description: "AI-powered curriculum-aligned assessment generator for educators"
+---
+
+## Welcome to EduMate
+
+EduMate is an AI-powered platform that transforms educational content into comprehensive, curriculum-aligned assessments. Built with cutting-edge technologies like RAG (Retrieval-Augmented Generation), Langchain, and Ollama, EduMate helps educators create high-quality assessments that align with Bloom's taxonomy cognitive levels.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running with EduMate in minutes
+  </Card>
+  <Card title="Upload Documents" icon="file-pdf" href="/guide/uploading-documents">
+    Learn how to process your educational materials
+  </Card>
+  <Card title="Generate Assessments" icon="wand-magic-sparkles" href="/guide/generating-assessments">
+    Create curriculum-aligned questions instantly
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/signup">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="AI-Powered Generation" icon="brain">
+    Uses advanced RAG technology with Langchain and Ollama to generate contextually accurate assessment questions from your educational content.
+  </Card>
+  <Card title="Bloom's Taxonomy" icon="layer-group">
+    Automatically classifies questions across six cognitive levels: Remember, Understand, Apply, Analyze, Evaluate, and Create.
+  </Card>
+  <Card title="Vector Search" icon="magnifying-glass">
+    Leverages Qdrant vector database for semantic search and retrieval of relevant content chunks for accurate question generation.
+  </Card>
+  <Card title="User Management" icon="users">
+    Complete authentication system with user accounts, assessment history, and secure password management.
+  </Card>
+  <Card title="Flexible Export" icon="file-export">
+    Export generated assessments to DOCX format for easy distribution, printing, and conversion to PDF.
+  </Card>
+  <Card title="Customizable Distribution" icon="sliders">
+    Control the number of questions at each Bloom's taxonomy level to match your curriculum requirements.
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Upload Your Content">
+    Upload PDF documents containing your educational materials. EduMate processes and chunks the content for optimal retrieval.
+  </Step>
+  <Step title="Generate Embeddings">
+    The system creates vector embeddings using Ollama's embedding models and stores them in Qdrant for semantic search.
+  </Step>
+  <Step title="Configure Assessment">
+    Specify the chapter or topic and set the distribution of questions across Bloom's taxonomy levels.
+  </Step>
+  <Step title="AI Generation">
+    EduMate uses RAG to retrieve relevant content and generates curriculum-aligned multiple-choice questions with detailed explanations.
+  </Step>
+  <Step title="Review and Export">
+    Review the generated assessment, make any adjustments, and export to your preferred format.
+  </Step>
+</Steps>
+
+## Technology Stack
+
+EduMate is built with a modern, scalable technology stack:
+
+- **Frontend**: React 19 with Vite, TailwindCSS, and Framer Motion
+- **Backend**: FastAPI with Python for high-performance API endpoints
+- **AI/ML**: Langchain, Ollama (local LLM), Google Gemini API
+- **Vector Database**: Qdrant for semantic search and retrieval
+- **Database**: PostgreSQL for user data and assessment storage
+- **Queue System**: Redis with RQ for background job processing
+- **Authentication**: JWT-based authentication with bcrypt password hashing
+
+<Note>
+EduMate runs locally on your infrastructure, giving you complete control over your data and ensuring privacy for sensitive educational materials.
+</Note>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Curriculum Development">
+    Create comprehensive assessment banks aligned with curriculum standards across multiple cognitive levels.
+  </Accordion>
+  <Accordion title="Test Preparation">
+    Generate practice tests and quizzes from textbook chapters and study materials.
+  </Accordion>
+  <Accordion title="Formative Assessment">
+    Quickly create assessments to check student understanding throughout the learning process.
+  </Accordion>
+  <Accordion title="Content Review">
+    Automatically generate review questions from course materials to reinforce learning.
+  </Accordion>
+</AccordionGroup>
+
+## Get Started
+
+Ready to transform your educational content into powerful assessments?
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Set up EduMate on your local infrastructure
+  </Card>
+  <Card title="Quickstart Tutorial" icon="play" href="/quickstart">
+    Generate your first assessment in under 10 minutes
+  </Card>
+</CardGroup>

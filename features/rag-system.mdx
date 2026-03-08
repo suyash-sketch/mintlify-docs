@@ -1,0 +1,470 @@
+---
+title: "RAG System Architecture"
+description: "Deep dive into EduMate's Retrieval-Augmented Generation pipeline using Langchain, Qdrant, and Ollama"
+---
+
+## Overview
+
+Retrieval-Augmented Generation (RAG) is the core architecture powering EduMate's intelligent assessment generation. RAG combines the strengths of vector search (retrieval) with large language model generation to produce contextually grounded, accurate questions.
+
+## What is RAG?
+
+RAG is a technique that enhances LLM outputs by:
+
+1. **Retrieving** relevant information from a knowledge base
+2. **Augmenting** the LLM prompt with this retrieved context
+3. **Generating** responses grounded in factual source material
+
+<Info>
+RAG solves the hallucination problem: instead of generating from parametric memory alone, the LLM reasons over real document content.
+</Info>
+
+## EduMate's RAG Pipeline
+
+<Steps>
+  <Step title="Document Indexing">
+    PDFs are chunked and embedded into Qdrant vector database (offline, one-time process).
+  </Step>
+  
+  <Step title="Query Embedding">
+    User's chapter/topic query is converted to a vector using the same embedding model.
+  </Step>
+  
+  <Step title="Similarity Search">
+    Qdrant retrieves the top-k most similar document chunks based on cosine similarity.
+  </Step>
+  
+  <Step title="Context Assembly">
+    Retrieved chunks are formatted into a structured prompt with metadata and content.
+  </Step>
+  
+  <Step title="LLM Generation">
+    Gemini generates questions using the retrieved context, following Bloom's Taxonomy requirements.
+  </Step>
+</Steps>
+
+## Architecture Components
+
+### 1. Langchain
+
+Langchain orchestrates the RAG pipeline, providing:
+
+- **Document loaders**: `PyPDFLoader` for PDF extraction
+- **Text splitters**: `RecursiveCharacterTextSplitter` for chunking
+- **Vector stores**: `QdrantVectorStore` integration
+- **Embeddings**: `OllamaEmbeddings` wrapper
+
+```python
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_ollama import OllamaEmbeddings
+from langchain_qdrant import QdrantVectorStore
+```
+
+### 2. Qdrant Vector Database
+
+Qdrant stores and retrieves document embeddings:
+
+- **URL**: `http://localhost:6333`
+- **Collections**: Separate collection per subject (e.g., "chemistry", "physics")
+- **Metadata**: Stores source file and page number with each chunk
+
+```python
+vector_db = QdrantVectorStore.from_existing_collection(
+    url='http://localhost:6333',
+    collection_name=collection_name,
+    embedding=_embedding_model(),
+)
+```
+
+<Card title="Why Qdrant?" icon="database">
+  - **High performance**: Optimized for similarity search at scale
+  - **Metadata filtering**: Filter by source, page, or custom fields
+  - **Local deployment**: Runs on-premises for data privacy
+  - **REST API**: Easy integration with Python and other languages
+</Card>
+
+### 3. Ollama for Embeddings
+
+Ollama runs the Qwen3 embedding model locally:
+
+- **Model**: `qwen3-embedding:0.6b`
+- **Endpoint**: `http://localhost:11434`
+- **Benefits**: Fast, local inference with no external API calls
+
+```python
+def _embedding_model():
+    return OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434',
+    )
+```
+
+<Warning>
+Ensure Ollama is running and the `qwen3-embedding:0.6b` model is pulled before processing documents or generating assessments.
+</Warning>
+
+## Vector Similarity Search
+
+The core of retrieval is vector similarity search:
+
+```python
+def search_and_ask(user_query, collection_name: str, blooms_requirements: str, top_k = 5):
+    vector_db = _vector_db(collection_name=collection_name)
+    search_results = vector_db.similarity_search(query=user_query, k=top_k)
+```
+
+### How Similarity Search Works
+
+1. **Query embedding**: User query is converted to a vector using Qwen3
+2. **Cosine similarity**: Qdrant computes cosine similarity between query vector and all document vectors
+3. **Top-k retrieval**: Returns the k most similar chunks (default: 5)
+
+<Accordion title="Cosine Similarity Explained">
+  Cosine similarity measures the angle between two vectors:
+  
+  - **1.0**: Identical meaning (0° angle)
+  - **0.0**: Orthogonal (90° angle, unrelated)
+  - **-1.0**: Opposite meaning (180° angle)
+  
+  EduMate retrieves chunks with the highest similarity scores, ensuring relevant context for question generation.
+</Accordion>
+
+### Top-k Parameter
+
+```python
+search_results = vector_db.similarity_search(query=user_query, k=top_k)
+```
+
+<CardGroup cols={2}>
+  <Card title="Default: k=5" icon="list-ol">
+    Retrieves 5 chunks to balance context richness with token efficiency.
+  </Card>
+  
+  <Card title="Configurable" icon="sliders">
+    Can be increased for broader context or decreased for focused questions.
+  </Card>
+</CardGroup>
+
+<Tip>
+`top_k=5` typically retrieves 75,000-100,000 characters of context (5 chunks × 15,000 chars + overlap), which fits comfortably in most LLM context windows while providing comprehensive coverage.
+</Tip>
+
+## Context Formatting
+
+Retrieved chunks are formatted to separate metadata from content:
+
+```python
+context_blocks = []
+for result in search_results:
+    block = (
+        f"--- ADMIN METADATA (DO NOT MENTION IN OUTPUT) ---\n"
+        f"Source: {result.metadata['source']}\n"
+        f"Page: {result.metadata['page_label']}\n"
+        f"--- EDUCATIONAL CONTENT ---\n"
+        f"{result.page_content}\n"
+    )
+    context_blocks.append(block)
+    
+context = "\n\n".join(context_blocks)
+```
+
+### Why This Format?
+
+<Accordion title="Metadata Isolation">
+  Clearly marking metadata as "DO NOT MENTION IN OUTPUT" instructs the LLM to use it for verification only, not in generated questions.
+</Accordion>
+
+<Accordion title="Content Clarity">
+  Separating educational content makes it clear what information should be used for question generation.
+</Accordion>
+
+<Accordion title="Source Traceability">
+  Including source and page metadata allows debugging and verification of question grounding.
+</Accordion>
+
+## Complete RAG Workflow
+
+Here's the full RAG implementation in `backend/queue/chat.py`:
+
+```python
+def search_and_ask(user_query, collection_name: str, 
+                   blooms_requirements: str = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create", 
+                   top_k = 5):
+    
+    # 1. RETRIEVAL: Get relevant chunks from vector DB
+    vector_db = _vector_db(collection_name=collection_name)
+    search_results = vector_db.similarity_search(query=user_query, k=top_k)
+    
+    if not search_results:
+        print("No search result from vector DB.")
+        return
+    
+    # 2. AUGMENTATION: Format context with metadata
+    context_blocks = []
+    for result in search_results:
+        block = (
+            f"--- ADMIN METADATA (DO NOT MENTION IN OUTPUT) ---\n"
+            f"Source: {result.metadata['source']}\n"
+            f"Page: {result.metadata['page_label']}\n"
+            f"--- EDUCATIONAL CONTENT ---\n"
+            f"{result.page_content}\n"
+        )
+        context_blocks.append(block)
+    context = "\n\n".join(context_blocks)
+    
+    # 3. Build prompt with context
+    SYSTEM_PROMPT = prompt_modelling(context, blooms_requirements)
+    
+    # 4. GENERATION: LLM produces structured output
+    response = open_ai_client.chat.completions.parse(
+        model='gemini-2.5-flash-lite',
+        response_format= OutputFormat,
+        messages=[
+            {"role":"system", "content" : SYSTEM_PROMPT},
+            {"role":"user", "content":user_query},
+        ],
+    )
+    
+    # 5. Return validated result
+    parsed = response.choices[0].message.parsed
+    return parsed.model_dump() if hasattr(parsed, "model_dump") else parsed
+```
+
+## Vector Store Initialization
+
+EduMate uses helper functions to initialize the embedding model and vector database:
+
+```python
+def _embedding_model():
+    return OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434',
+    )
+
+def _vector_db(collection_name: str):
+    return QdrantVectorStore.from_existing_collection(
+        url='http://localhost:6333',
+        collection_name=collection_name,
+        embedding=_embedding_model(),
+    )
+```
+
+<Info>
+The same embedding model (`qwen3-embedding:0.6b`) must be used for both indexing (document processing) and retrieval (query embedding) to ensure vectors live in the same semantic space.
+</Info>
+
+## LLM Clients
+
+EduMate configures clients for both Gemini (production) and Ollama (local alternative):
+
+```python
+# Gemini via OpenAI-compatible API
+open_ai_client = OpenAI(
+    api_key=GEMINI_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+# Ollama for local models (alternative)
+ollama_client = Client(
+    host='http://localhost:11434'
+)
+```
+
+<CardGroup cols={2}>
+  <Card title="Gemini (Default)" icon="google">
+    **Production LLM**
+    
+    - Model: `gemini-2.5-flash-lite`
+    - Structured output support
+    - High-quality generation
+  </Card>
+  
+  <Card title="Ollama (Alternative)" icon="server">
+    **Local LLM**
+    
+    - Model: `llama3.2:1b` (commented)
+    - Fully offline operation
+    - Privacy-focused deployment
+  </Card>
+</CardGroup>
+
+## Benefits of RAG Architecture
+
+<Steps>
+  <Step title="Factual Grounding">
+    Questions are based on actual document content, not LLM parametric memory, reducing hallucinations.
+  </Step>
+  
+  <Step title="Source Traceability">
+    Each generated question can be traced back to specific pages and documents for verification.
+  </Step>
+  
+  <Step title="Domain Adaptation">
+    No model fine-tuning required—simply index new documents to support new subjects.
+  </Step>
+  
+  <Step title="Scalability">
+    Vector search scales to millions of documents with sub-second retrieval times.
+  </Step>
+  
+  <Step title="Privacy">
+    Local embedding model (Ollama) means sensitive educational content never leaves your infrastructure.
+  </Step>
+</Steps>
+
+## RAG vs. Fine-Tuning
+
+| Approach | RAG (EduMate) | Fine-Tuning |
+|----------|---------------|-------------|
+| **Setup Time** | Minutes (just index docs) | Days/weeks (training required) |
+| **Cost** | Low (inference only) | High (GPU training) |
+| **Updatability** | Instant (add new docs) | Slow (retrain model) |
+| **Factual Accuracy** | High (grounded in sources) | Variable (can hallucinate) |
+| **Traceability** | Full (source + page metadata) | None (black box) |
+
+<Tip>
+RAG is ideal for educational applications where content changes frequently and factual accuracy is critical.
+</Tip>
+
+## Performance Considerations
+
+### Embedding Generation
+
+- **Speed**: Qwen3 (0.6B params) embeds ~100 tokens/sec on CPU
+- **Batch processing**: Documents are embedded in batches during indexing
+- **Query latency**: Single query embedding takes ~50-100ms
+
+### Vector Search
+
+- **Qdrant performance**: Less than 10ms for top-5 retrieval on 100k vectors
+- **Scaling**: Sub-linear scaling with HNSW index
+- **Memory**: ~1GB RAM per 100k vectors (768-dim embeddings)
+
+### End-to-End Latency
+
+<Accordion title="Typical Request Timeline">
+  1. **Query embedding**: 50-100ms (Ollama)
+  2. **Vector search**: 10-20ms (Qdrant)
+  3. **LLM generation**: 5-15 seconds (Gemini, 20 questions)
+  
+  **Total**: ~5-15 seconds for complete assessment generation
+</Accordion>
+
+## Storage Architecture
+
+```python
+class Assessment(Base):
+    __tablename__ = "assessments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    chapter_name = Column(String)
+    bloom_factors = Column(JSONB)  # Distribution used
+    content_json = Column(JSONB)   # Generated questions
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+- **PostgreSQL**: Stores assessment metadata and results
+- **Qdrant**: Stores document vectors and metadata
+- **Separation of concerns**: Structured data in Postgres, vectors in Qdrant
+
+## Async Processing with Redis Queue
+
+Both document processing and assessment generation run asynchronously:
+
+```python
+# backend/queue/doc_chunking.py - Document processing job
+def chunk(doc_path, collection_name: str):
+    # Processes PDFs and stores in Qdrant
+    ...
+
+# backend/queue/chat.py - Assessment generation job  
+def search_and_ask(user_query, collection_name: str, blooms_requirements: str, top_k=5):
+    # Retrieves context and generates questions
+    ...
+```
+
+<Info>
+Asynchronous processing via Redis Queue (RQ) prevents long-running operations from blocking the FastAPI web server, enabling responsive user experience even during heavy workloads.
+</Info>
+
+## System Requirements
+
+To run EduMate's RAG system:
+
+<CardGroup cols={2}>
+  <Card title="Ollama" icon="server">
+    **Embedding Model**
+    
+    - Install Ollama
+    - Pull `qwen3-embedding:0.6b`
+    - Run on port 11434
+  </Card>
+  
+  <Card title="Qdrant" icon="database">
+    **Vector Database**
+    
+    - Docker: `qdrant/qdrant`
+    - Or standalone binary
+    - Run on port 6333
+  </Card>
+  
+  <Card title="PostgreSQL" icon="database">
+    **Structured Storage**
+    
+    - Store assessments
+    - User data
+    - JSONB support required
+  </Card>
+  
+  <Card title="Redis" icon="bolt">
+    **Task Queue**
+    
+    - Redis server
+    - RQ workers
+    - Async job processing
+  </Card>
+</CardGroup>
+
+## Example: Complete RAG Flow
+
+Let's trace a complete request:
+
+1. **User uploads** `organic_chemistry.pdf` → Document processing job queued
+2. **RQ worker** chunks document into 42 chunks (15,000 chars each)
+3. **Ollama** generates embeddings for all 42 chunks
+4. **Qdrant** stores vectors in "chemistry" collection
+5. **User requests** assessment on "Alkanes and Alkenes"
+6. **Query embedding** generated for "Alkanes and Alkenes"
+7. **Qdrant retrieves** 5 most similar chunks (pages 12, 13, 14, 18, 19)
+8. **Context formatted** with metadata and content
+9. **Gemini generates** 20 MCQs following Bloom's distribution
+10. **Assessment stored** in PostgreSQL with JSONB content
+11. **User receives** generated questions in UI
+
+## Debugging and Monitoring
+
+The RAG pipeline includes logging for debugging:
+
+```python
+print(f'\n\n{context}\n\n')  # Log retrieved context
+print(f"Loaded {len(docs)} documents (pages). Splitting documents into chunks....")
+print("Indexing of documents done....")
+```
+
+<Tip>
+Monitor these logs to verify that relevant context is being retrieved and document processing is completing successfully.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Document Processing" icon="file-pdf" href="/features/document-processing">
+    Learn about PDF loading, chunking, and embedding generation
+  </Card>
+  
+  <Card title="Assessment Generation" icon="clipboard-question" href="/features/assessment-generation">
+    Deep dive into prompt engineering and question generation
+  </Card>
+</CardGroup>

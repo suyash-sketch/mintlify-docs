@@ -1,0 +1,317 @@
+---
+title: "Assessment Generation"
+description: "Discover how EduMate generates high-quality MCQ assessments using RAG and Bloom's Taxonomy"
+---
+
+## Overview
+
+EduMate generates multiple-choice question (MCQ) assessments using a Retrieval-Augmented Generation (RAG) pipeline. The system retrieves relevant context from processed documents, then uses an LLM to generate questions aligned with Bloom's Taxonomy cognitive levels.
+
+## Generation Pipeline
+
+<Steps>
+  <Step title="User Query">
+    The user provides a chapter name or topic they want to be assessed on.
+  </Step>
+  
+  <Step title="Vector Similarity Search">
+    The system retrieves the most relevant document chunks from Qdrant using vector similarity search.
+  </Step>
+  
+  <Step title="Context Assembly">
+    Retrieved chunks are formatted into a structured context with metadata and content separated.
+  </Step>
+  
+  <Step title="Prompt Engineering">
+    A carefully crafted system prompt instructs the LLM to generate questions following Bloom's Taxonomy distribution.
+  </Step>
+  
+  <Step title="Structured Generation">
+    The LLM generates questions in a validated Pydantic schema format with all required fields.
+  </Step>
+</Steps>
+
+## Vector Similarity Search
+
+The assessment generation begins with retrieving relevant context from the vector database:
+
+```python
+def search_and_ask(user_query, collection_name: str, 
+                   blooms_requirements: str = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create", 
+                   top_k = 5):
+    
+    vector_db = _vector_db(collection_name=collection_name)
+    search_results = vector_db.similarity_search(query=user_query, k=top_k)
+    
+    if not search_results:
+        print("No search result from vector DB.")
+        return
+```
+
+### Search Parameters
+
+<CardGroup cols={2}>
+  <Card title="top_k" icon="list-ol">
+    **Default: 5 chunks** - Retrieves the 5 most similar document chunks to provide diverse context for question generation.
+  </Card>
+  
+  <Card title="Similarity Metric" icon="chart-line">
+    **Cosine similarity** - Measures the angular distance between query and document embeddings in vector space.
+  </Card>
+</CardGroup>
+
+<Info>
+The `top_k=5` parameter balances context richness with token efficiency, providing enough information without overwhelming the LLM context window.
+</Info>
+
+## Context Assembly
+
+Retrieved chunks are formatted with clear separation between metadata (for LLM verification) and educational content:
+
+```python
+context_blocks = []
+for result in search_results:
+    block = (
+        f"--- ADMIN METADATA (DO NOT MENTION IN OUTPUT) ---\n"
+        f"Source: {result.metadata['source']}\n"
+        f"Page: {result.metadata['page_label']}\n"
+        f"--- EDUCATIONAL CONTENT ---\n"
+        f"{result.page_content}\n"
+    )
+    context_blocks.append(block)
+    
+context = "\n\n".join(context_blocks)
+```
+
+### Context Structure
+
+Each retrieved chunk includes:
+
+- **Admin Metadata**: Source file and page number (for LLM verification only)
+- **Educational Content**: The actual text content from the PDF
+
+<Warning>
+The metadata is explicitly marked as "DO NOT MENTION IN OUTPUT" to ensure questions don't reference page numbers or PDF files, making them suitable for standalone exams.
+</Warning>
+
+## Prompt Engineering
+
+The system prompt is carefully designed to produce professional, exam-ready questions:
+
+```python
+def prompt_modelling(context, blooms_requirements: str):
+    SYSTEM_PROMPT = f"""
+        You are a Subject Matter Expert designing a professional, standalone exam. 
+        You have been provided with "Educational Content" and "Admin Metadata" for verification.
+
+        ### THE RULES FOR YOUR OUTPUT:
+        1. **STRICT BLIND EXAM MODE**: Write the questions as if the student has NO access to any documents. 
+           - DO NOT mention "Page Numbers," "Lessons," "Sections," or "the PDF."
+           - BAD: "According to the provided text on page 4, what is..."
+           - GOOD: "What is the primary characteristic of..."
+        2. **INTERNAL VERIFICATION ONLY**: Use the "Admin Metadata" only to ensure your answer is grounded in the correct chapter. DO NOT repeat this metadata in the question, the options, or the explanation.
+        3. **EXPLANATION FORMAT**: Write the explanation as a factual teaching note. 
+           - BAD: "This is found on page 10 of nodejs.pdf."
+           - GOOD: "Promises are used to handle asynchronous operations more cleanly than callbacks."
+        4. **BLOOM'S TAXONOMY**: Generate questions according to these counts: {blooms_requirements}.
+           For each question, set the `bloom_level` field to exactly one of: remember, understand, apply, analyze, evaluate, create — matching the cognitive level of that question.
+
+        ### PROVIDED DATA (FOR YOUR EYES ONLY):
+        {context}
+    """
+    return SYSTEM_PROMPT
+```
+
+### Prompt Design Principles
+
+<Accordion title="Blind Exam Mode">
+  Questions are written as if students have no access to source materials. This ensures they can be used in standalone exams without referencing "the document" or page numbers.
+</Accordion>
+
+<Accordion title="Metadata Separation">
+  Source information is provided to the LLM for verification but explicitly excluded from generated questions, creating clean, professional assessment items.
+</Accordion>
+
+<Accordion title="Factual Explanations">
+  Explanations focus on teaching concepts rather than citing sources, making them valuable learning tools beyond just answer keys.
+</Accordion>
+
+<Accordion title="Bloom's Distribution">
+  The prompt enforces a specific distribution across cognitive levels (default: 5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create) to ensure comprehensive assessment coverage.
+</Accordion>
+
+## Structured Output Schema
+
+EduMate uses Pydantic models to enforce structured, validated output:
+
+```python
+class SingleMCQ(BaseModel):
+    question_no : str
+    bloom_level : str  # e.g. "remember", "understand", "apply", "analyze", "evaluate", "create"
+    question : str
+    answer_options : List[str]
+    correct_answer : str
+    explaination : Optional[str]
+    
+class OutputFormat(BaseModel):
+    mcqs : List[SingleMCQ]
+```
+
+### Schema Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `question_no` | `str` | Sequential question identifier (e.g., "1", "2") |
+| `bloom_level` | `str` | Cognitive level from Bloom's Taxonomy |
+| `question` | `str` | The question text |
+| `answer_options` | `List[str]` | Four answer choices |
+| `correct_answer` | `str` | The correct answer from the options |
+| `explaination` | `Optional[str]` | Detailed explanation of the correct answer |
+
+<Tip>
+The structured schema ensures consistent formatting and makes it easy to render questions in the frontend with proper validation.
+</Tip>
+
+## LLM Generation
+
+EduMate uses Google's Gemini model with structured output parsing:
+
+```python
+response = open_ai_client.chat.completions.parse(
+    model='gemini-2.5-flash-lite',
+    response_format= OutputFormat,
+    messages=[
+        {"role":"system", "content" : SYSTEM_PROMPT},
+        {"role":"user", "content":user_query},
+    ],
+)
+
+parsed = response.choices[0].message.parsed
+return parsed.model_dump() if hasattr(parsed, "model_dump") else parsed
+```
+
+### Why Gemini 2.5 Flash Lite?
+
+- **Fast generation**: Optimized for quick response times
+- **Structured output**: Native support for Pydantic schema validation
+- **High quality**: Generates coherent, educationally sound questions
+- **Cost-effective**: Lite model balances quality with efficiency
+
+<Note>
+The system also includes commented-out code for local Ollama models (e.g., `llama3.2:1b`) as an alternative to Gemini for fully offline operation.
+</Note>
+
+## Default Bloom's Distribution
+
+The default question distribution across Bloom's Taxonomy levels is:
+
+```python
+blooms_requirements = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create"
+```
+
+This generates **20 total questions** with a balanced progression from lower to higher-order thinking:
+
+<CardGroup cols={3}>
+  <Card title="Remember" icon="brain">
+    5 questions - Recall facts and basic concepts
+  </Card>
+  
+  <Card title="Understand" icon="book-open">
+    3 questions - Explain ideas or concepts
+  </Card>
+  
+  <Card title="Apply" icon="wrench">
+    4 questions - Use information in new situations
+  </Card>
+  
+  <Card title="Analyze" icon="microscope">
+    3 questions - Draw connections among ideas
+  </Card>
+  
+  <Card title="Evaluate" icon="balance-scale">
+    2 questions - Justify decisions or opinions
+  </Card>
+  
+  <Card title="Create" icon="lightbulb">
+    3 questions - Produce new or original work
+  </Card>
+</CardGroup>
+
+## Complete Generation Function
+
+```python
+def search_and_ask(user_query, collection_name: str, 
+                   blooms_requirements: str = "5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create", 
+                   top_k = 5):
+    # 1. Retrieve context
+    vector_db = _vector_db(collection_name=collection_name)
+    search_results = vector_db.similarity_search(query=user_query, k=top_k)
+    
+    if not search_results:
+        print("No search result from vector DB.")
+        return
+    
+    # 2. Format context
+    context_blocks = []
+    for result in search_results:
+        block = (
+            f"--- ADMIN METADATA (DO NOT MENTION IN OUTPUT) ---\n"
+            f"Source: {result.metadata['source']}\n"
+            f"Page: {result.metadata['page_label']}\n"
+            f"--- EDUCATIONAL CONTENT ---\n"
+            f"{result.page_content}\n"
+        )
+        context_blocks.append(block)
+    context = "\n\n".join(context_blocks)
+    
+    # 3. Build prompt
+    SYSTEM_PROMPT = prompt_modelling(context, blooms_requirements)
+    
+    # 4. Generate structured output
+    response = open_ai_client.chat.completions.parse(
+        model='gemini-2.5-flash-lite',
+        response_format= OutputFormat,
+        messages=[
+            {"role":"system", "content" : SYSTEM_PROMPT},
+            {"role":"user", "content":user_query},
+        ],
+    )
+    
+    # 5. Return validated result
+    parsed = response.choices[0].message.parsed
+    return parsed.model_dump() if hasattr(parsed, "model_dump") else parsed
+```
+
+<Tip>
+The generation function is executed asynchronously via Redis Queue in `backend/queue/chat.py` to handle multiple concurrent assessment requests without blocking.
+</Tip>
+
+## Storage and Retrieval
+
+Generated assessments are stored in PostgreSQL with JSONB columns:
+
+```python
+class Assessment(Base):
+    __tablename__ = "assessments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    chapter_name = Column(String)
+    bloom_factors = Column(JSONB)  # Stores {remember: 5, apply: 2, etc.}
+    content_json = Column(JSONB)   # Stores the complete output from Gemini
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+This allows efficient querying and retrieval of past assessments for review and analytics.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Bloom's Taxonomy" icon="layer-group" href="/features/blooms-taxonomy">
+    Deep dive into the six cognitive levels and question distribution
+  </Card>
+  
+  <Card title="RAG System" icon="brain" href="/features/rag-system">
+    Understand the retrieval-augmented generation architecture
+  </Card>
+</CardGroup>

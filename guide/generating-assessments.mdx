@@ -1,0 +1,277 @@
+---
+title: "Generating Assessments"
+description: "Create AI-powered assessments with customizable Bloom's Taxonomy distribution"
+icon: "wand-magic-sparkles"
+---
+
+## Overview
+
+Once you've uploaded a document, EduMate can generate multiple-choice questions (MCQs) based on your content. You have full control over the number and cognitive level of questions using Bloom's Taxonomy.
+
+## Prerequisites
+
+Before generating an assessment, ensure you have:
+- [x] Uploaded a PDF document
+- [x] Waited for document processing to complete
+- [x] Seen the "Document ready for AI generation" confirmation
+
+## Understanding Bloom's Taxonomy
+
+EduMate uses Bloom's Taxonomy to create questions at different cognitive levels:
+
+<CardGroup cols={2}>
+  <Card title="Remember" icon="brain" color="#3b82f6">
+    Recall facts, basic concepts, or information from memory.
+    
+    *Example: "What is the definition of...?"*
+  </Card>
+  
+  <Card title="Understand" icon="lightbulb" color="#06b6d4">
+    Explain ideas or concepts in your own words.
+    
+    *Example: "Explain why..."*
+  </Card>
+  
+  <Card title="Apply" icon="wrench" color="#10b981">
+    Use learned knowledge in new or real-world situations.
+    
+    *Example: "How would you use...?"*
+  </Card>
+  
+  <Card title="Analyze" icon="magnifying-glass-chart" color="#8b5cf6">
+    Draw connections and break down information into parts.
+    
+    *Example: "What is the relationship between...?"*
+  </Card>
+  
+  <Card title="Evaluate" icon="scale-balanced" color="#f97316">
+    Justify a decision or course of action using evidence.
+    
+    *Example: "Which approach is better and why?"*
+  </Card>
+  
+  <Card title="Create" icon="sparkles" color="#ec4899">
+    Produce new or original work by combining ideas.
+    
+    *Example: "Design a solution that..."*
+  </Card>
+</CardGroup>
+
+<Tip>
+  Click the "Taxonomy Guide" button in the sidebar to view this reference at any time while creating assessments.
+</Tip>
+
+## Configuring Your Assessment
+
+### Step 1: Access the Dashboard
+
+From the main dashboard, locate the "Create New Assessment" card. This is where you'll configure all assessment parameters.
+
+### Step 2: Set Bloom's Taxonomy Distribution
+
+Under "Step 2: Bloom's Taxonomy Factors", you'll see six levels with adjustable counters:
+
+<Steps>
+  <Step title="Review Default Distribution">
+    The system starts with a default distribution:
+    - Remember: 5 questions
+    - Understand: 3 questions
+    - Apply: 4 questions
+    - Analyze: 3 questions
+    - Evaluate: 2 questions
+    - Create: 3 questions
+    
+    **Total: 20 questions**
+  </Step>
+  
+  <Step title="Adjust Question Counts">
+    For each level, use the **minus (−)** and **plus (+)** buttons to decrease or increase the number of questions.
+    
+    <Info>
+      The total question count updates automatically as you adjust individual levels.
+    </Info>
+  </Step>
+  
+  <Step title="Strategic Planning">
+    Consider your assessment goals:
+    - **Lower-order thinking (Remember, Understand)**: Good for foundational knowledge checks
+    - **Mid-order thinking (Apply, Analyze)**: Tests practical application and critical thinking
+    - **Higher-order thinking (Evaluate, Create)**: Challenges students with complex problem-solving
+    
+    <Note>
+      You can set any level to 0 if you don't want questions at that cognitive level.
+    </Note>
+  </Step>
+</Steps>
+
+### Step 3: Enter Chapter Name
+
+Under "Step 3: Chapter / Module Name":
+
+<Steps>
+  <Step title="Provide Context">
+    Enter a descriptive name for the assessment topic, such as:
+    - "Asynchronous Node.js"
+    - "Chapter 5: Photosynthesis"
+    - "Introduction to Machine Learning"
+    
+    <Tip>
+      Specific chapter names help the AI generate more contextually relevant questions.
+    </Tip>
+  </Step>
+</Steps>
+
+## Generating Your Assessment
+
+Once configured:
+
+<Steps>
+  <Step title="Verify Settings">
+    Ensure:
+    - Your document is uploaded and processed
+    - At least 1 question is configured (total > 0)
+    - A chapter name is entered
+  </Step>
+  
+  <Step title="Click Generate">
+    Click the large "Generate AI Assessment" button at the bottom of the form.
+    
+    <Info>
+      The button is disabled until all requirements are met. If grayed out, check the button text for guidance.
+    </Info>
+  </Step>
+  
+  <Step title="Wait for Generation">
+    The system will:
+    - Switch to a loading screen with a spinning animation
+    - Display status message: "Crafting your assessment with AI..."
+    - Poll the backend every 2 seconds for completion
+    
+    **Typical Generation Time**:
+    - 10 questions: 30-60 seconds
+    - 20 questions: 60-120 seconds
+    - 30+ questions: 2-3 minutes
+    
+    <Warning>
+      Do not close the browser tab or navigate away during generation. The process will be interrupted.
+    </Warning>
+  </Step>
+  
+  <Step title="View Results">
+    Once complete, you'll automatically see your generated assessment with:
+    - All questions numbered and formatted
+    - Multiple-choice options (typically A-D)
+    - Bloom's level badge on each question
+    - Toggle between Question Paper and Answer Key views
+  </Step>
+</Steps>
+
+## Understanding the Results Screen
+
+### Question Paper View
+
+Shows questions without answers—ideal for distributing to students:
+- Question text
+- Answer options (A, B, C, D)
+- Bloom's taxonomy level badge
+- Clean, professional formatting
+
+### Answer Key View
+
+Shows the complete solution set:
+- All questions
+- Correct answers highlighted in green with a checkmark
+- Correct answer letter displayed in the header
+- Expandable explanations for each question
+
+<Tip>
+  Click "Show Explanation" under any question in Answer Key mode to see the AI's reasoning for the correct answer.
+</Tip>
+
+## Regenerating Questions
+
+Not satisfied with the results? You can generate a fresh set:
+
+<Steps>
+  <Step title="Click Regenerate">
+    Click the "Regenerate Questions" button at the top of the results page.
+  </Step>
+  
+  <Step title="New Generation Begins">
+    The system uses the same document and settings to create entirely new questions with different content.
+    
+    <Info>
+      Regeneration uses the same chapter name and Bloom's distribution you configured. Both the original and regenerated assessments are saved to your history.
+    </Info>
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Balance Cognitive Levels" icon="scale-balanced">
+    Mix lower-order and higher-order questions to assess comprehensive understanding.
+  </Card>
+  
+  <Card title="Start Small" icon="seedling">
+    Generate 10-15 questions first to evaluate quality before creating larger assessments.
+  </Card>
+  
+  <Card title="Specific Chapter Names" icon="tag">
+    Use precise, descriptive names to help the AI focus on relevant content.
+  </Card>
+  
+  <Card title="Review Before Use" icon="clipboard-check">
+    Always review generated questions for accuracy and relevance before distributing to students.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Button stays disabled">
+    **Check**:
+    - Is the document fully processed? (Look for green checkmark)
+    - Is the total question count greater than 0?
+    - Did you enter a chapter name?
+  </Accordion>
+  
+  <Accordion title="Generation takes too long">
+    **Typical causes**:
+    - Large question counts (30+) take longer
+    - High server load during peak hours
+    - Complex document content
+    
+    **Wait at least 5 minutes before assuming failure**. The system will show an error if generation fails.
+  </Accordion>
+  
+  <Accordion title="Generation failed error">
+    **Try**:
+    - Reduce the number of questions
+    - Simplify the chapter name
+    - Re-upload the document
+    - Contact support if the issue persists
+  </Accordion>
+</AccordionGroup>
+
+## What Happens Behind the Scenes
+
+When you generate an assessment:
+
+1. **Job Creation**: Your request is queued on the backend
+2. **AI Processing**: The AI retrieves relevant chunks from your document
+3. **Question Generation**: MCQs are created based on content and Bloom's requirements
+4. **Quality Check**: Questions are formatted with options, correct answers, and explanations
+5. **Database Storage**: The assessment is automatically saved to your history
+6. **Display**: Results are presented in the interactive viewer
+
+<Info>
+  All generated assessments are automatically saved to your history for future access, even if you navigate away from the results page.
+</Info>
+
+## Next Steps
+
+After generating your assessment:
+- [Export to PDF or DOCX](/guide/exporting-assessments) for distribution
+- [View in your history](/guide/viewing-history) to access it later
+- Create a new assessment or regenerate questions

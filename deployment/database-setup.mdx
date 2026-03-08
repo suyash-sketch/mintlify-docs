@@ -1,0 +1,285 @@
+---
+title: Database Setup
+description: Install and configure PostgreSQL for EduMate
+---
+
+## PostgreSQL Installation
+
+EduMate uses PostgreSQL to store user accounts, authentication data, and assessment history. The database schema includes users and assessments tables with JSONB support for flexible data storage.
+
+### Install PostgreSQL
+
+<CodeGroup>
+
+```bash Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+```bash macOS (Homebrew)
+brew install postgresql@15
+
+# Start PostgreSQL service
+brew services start postgresql@15
+```
+
+```bash Fedora/RHEL
+sudo dnf install postgresql-server postgresql-contrib
+
+# Initialize database
+sudo postgresql-setup --initdb
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+```
+
+```bash Windows
+# Download installer from https://www.postgresql.org/download/windows/
+# Run the installer and follow the setup wizard
+# Default port: 5432
+```
+
+</CodeGroup>
+
+### Verify Installation
+
+```bash
+psql --version
+# Expected output: psql (PostgreSQL) 13.x or higher
+```
+
+## Database Configuration
+
+<Steps>
+  <Step title="Access PostgreSQL">
+    Connect to PostgreSQL as the postgres superuser:
+    
+    ```bash
+    sudo -u postgres psql
+    ```
+  </Step>
+
+  <Step title="Create Database User">
+    Create a dedicated user for EduMate:
+    
+    ```sql
+    CREATE USER edumate_user WITH PASSWORD 'edumate_pass';
+    ```
+    
+    <Warning>
+    Change `edumate_pass` to a strong password in production environments!
+    </Warning>
+  </Step>
+
+  <Step title="Create Database">
+    Create the EduMate database:
+    
+    ```sql
+    CREATE DATABASE edumate OWNER edumate_user;
+    ```
+  </Step>
+
+  <Step title="Grant Privileges">
+    Grant all privileges to the user:
+    
+    ```sql
+    GRANT ALL PRIVILEGES ON DATABASE edumate TO edumate_user;
+    
+    -- Exit psql
+    \q
+    ```
+  </Step>
+</Steps>
+
+## Database Schema
+
+The EduMate backend automatically creates the required tables on first run using SQLAlchemy. The schema includes:
+
+### Users Table
+
+Stores user authentication and profile information:
+
+```python
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    email = Column(String, unique=True, index=True)
+    password_hash = Column(String)  # bcrypt hashed
+```
+
+### Assessments Table
+
+Stores generated assessments with JSONB data:
+
+```python
+class Assessment(Base):
+    __tablename__ = "assessments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    chapter_name = Column(String)
+    bloom_factors = Column(JSONB)  # {remember: 5, apply: 2, ...}
+    content_json = Column(JSONB)   # Full MCQ data from Gemini
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+```
+
+<Info>
+The database schema is defined in `backend/models.py` and automatically created by SQLAlchemy when the FastAPI server starts.
+</Info>
+
+## Connection Configuration
+
+The database connection is configured in `backend/database.py`:
+
+```python backend/database.py
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Database connection URL
+SQLALCHEMY_DATABASE_URL = "postgresql://edumate_user:edumate_pass@localhost:5432/edumate"
+
+# Create the engine
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+
+# Create session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base class for models
+Base = declarative_base()
+```
+
+### Connection String Format
+
+The PostgreSQL connection URL follows this format:
+
+```
+postgresql://[user]:[password]@[host]:[port]/[database]
+```
+
+**Example**:
+```
+postgresql://edumate_user:edumate_pass@localhost:5432/edumate
+```
+
+<Tip>
+For remote database servers, replace `localhost` with the server's IP address or hostname.
+</Tip>
+
+## Testing the Connection
+
+<Steps>
+  <Step title="Test Manual Connection">
+    Verify you can connect with the created credentials:
+    
+    ```bash
+    psql -U edumate_user -d edumate -h localhost
+    # Enter password when prompted: edumate_pass
+    ```
+  </Step>
+
+  <Step title="List Tables">
+    Once connected, verify the database is empty (tables will be created by FastAPI):
+    
+    ```sql
+    \dt
+    # Should show "Did not find any relations" initially
+    ```
+  </Step>
+
+  <Step title="Exit PostgreSQL">
+    ```sql
+    \q
+    ```
+  </Step>
+</Steps>
+
+## Common Configuration Issues
+
+### Connection Refused
+
+If you see "connection refused" errors:
+
+```bash
+# Check if PostgreSQL is running
+sudo systemctl status postgresql
+
+# Start if not running
+sudo systemctl start postgresql
+```
+
+### Authentication Failed
+
+If authentication fails, edit the PostgreSQL configuration:
+
+```bash
+# Edit pg_hba.conf
+sudo nano /etc/postgresql/[version]/main/pg_hba.conf
+
+# Change peer to md5 for local connections:
+# local   all             all                                     md5
+# host    all             all             127.0.0.1/32            md5
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### Port Already in Use
+
+If port 5432 is already in use:
+
+```bash
+# Check what's using the port
+sudo lsof -i :5432
+
+# Or check with netstat
+sudo netstat -tuln | grep 5432
+```
+
+## Database Maintenance
+
+### Backup Database
+
+```bash
+# Create backup
+pg_dump -U edumate_user -d edumate > edumate_backup.sql
+
+# With timestamp
+pg_dump -U edumate_user -d edumate > edumate_backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+### Restore Database
+
+```bash
+# Restore from backup
+psql -U edumate_user -d edumate < edumate_backup.sql
+```
+
+### Reset Database
+
+<Warning>
+This will delete all data! Only use in development.
+</Warning>
+
+```bash
+# Connect as postgres user
+sudo -u postgres psql
+
+# Drop and recreate database
+DROP DATABASE edumate;
+CREATE DATABASE edumate OWNER edumate_user;
+\q
+```
+
+## Next Steps
+
+With PostgreSQL configured, proceed to set up the vector database:
+
+- [Vector Database Setup](/deployment/vector-db) - Configure Qdrant for document embeddings
+- [Backend Deployment](/deployment/backend) - The FastAPI server will automatically create tables on startup

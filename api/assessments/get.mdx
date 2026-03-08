@@ -1,0 +1,167 @@
+---
+title: 'Get Assessment'
+api: 'GET /api/assessments/{assessment_id}'
+---
+
+Retrieves the complete details and content of a specific saved assessment.
+
+## Authentication
+
+This endpoint requires authentication. Include a valid JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your_access_token>
+```
+
+## Request
+
+### Path Parameters
+
+<ParamField path="assessment_id" type="integer" required>
+  The unique identifier of the assessment to retrieve. This ID is returned when saving an assessment or can be obtained from the [Assessment History](/api/assessments/history) endpoint.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="integer">
+  The unique identifier of the assessment.
+</ResponseField>
+
+<ResponseField name="chapter_name" type="string">
+  The chapter or topic name for this assessment.
+</ResponseField>
+
+<ResponseField name="content" type="object">
+  The complete assessment content including all questions, answers, and metadata.
+  
+  <Expandable title="content structure">
+    <ResponseField name="mcqs" type="array">
+      Array of multiple-choice questions.
+      
+      <Expandable title="MCQ structure">
+        <ResponseField name="question" type="string">
+          The question text.
+        </ResponseField>
+        
+        <ResponseField name="options" type="array">
+          Array of answer options (typically 4 choices).
+        </ResponseField>
+        
+        <ResponseField name="correct_answer" type="string">
+          The correct answer text.
+        </ResponseField>
+        
+        <ResponseField name="bloom_level" type="string">
+          The Bloom's taxonomy level (e.g., "remember", "understand", "apply", "analyze", "evaluate", "create").
+        </ResponseField>
+        
+        <ResponseField name="explanation" type="string">
+          Explanation for why the correct answer is correct.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET "http://localhost:8000/api/assessments/42" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+## Example Response
+
+```json
+{
+  "id": 42,
+  "chapter_name": "Chapter 3: Photosynthesis",
+  "content": {
+    "mcqs": [
+      {
+        "question": "What is the primary function of chlorophyll in photosynthesis?",
+        "options": [
+          "Absorb light energy",
+          "Store glucose",
+          "Release oxygen",
+          "Transport water"
+        ],
+        "correct_answer": "Absorb light energy",
+        "bloom_level": "remember",
+        "explanation": "Chlorophyll is the pigment that captures light energy from the sun, which is the first step in photosynthesis."
+      },
+      {
+        "question": "Compare and contrast the light-dependent and light-independent reactions.",
+        "options": [
+          "Both occur in the stroma",
+          "Light-dependent produces ATP and NADPH; light-independent uses them to fix carbon",
+          "Both require direct sunlight",
+          "Light-independent produces oxygen"
+        ],
+        "correct_answer": "Light-dependent produces ATP and NADPH; light-independent uses them to fix carbon",
+        "bloom_level": "analyze",
+        "explanation": "The light-dependent reactions capture energy and produce ATP and NADPH, while the light-independent reactions (Calvin cycle) use these products to convert CO2 into glucose."
+      },
+      {
+        "question": "Design an experiment to test how light intensity affects photosynthesis rate.",
+        "options": [
+          "Measure oxygen production at different light distances",
+          "Count the number of leaves",
+          "Measure plant height over time",
+          "Test soil pH levels"
+        ],
+        "correct_answer": "Measure oxygen production at different light distances",
+        "bloom_level": "create",
+        "explanation": "Measuring oxygen production (a byproduct of photosynthesis) at varying light intensities directly tests the relationship between light and photosynthesis rate."
+      }
+    ]
+  }
+}
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+Returned when the Authorization header is missing or contains an invalid token.
+
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+### 404 Not Found
+
+Returned when the assessment ID doesn't exist or doesn't belong to the authenticated user.
+
+```json
+{
+  "detail": "Assessment not found"
+}
+```
+
+## Security
+
+- Users can only access their own assessments
+- Attempting to access another user's assessment returns a 404 error (not 403) to prevent information disclosure
+- The assessment ID and user ID are both verified in the database query
+
+## Use Cases
+
+- Display full assessment content for review
+- Allow users to retake assessments
+- Export assessment data for external use
+- Share assessment content (with appropriate permission handling)
+- Print or generate PDF versions of assessments
+
+## Notes
+
+- The `content` field structure matches the `content_json` saved via [Save Assessment](/api/assessments/save)
+- All questions include explanations to support learning outcomes
+- Questions are tagged with Bloom's taxonomy levels for educational tracking
+
+## Related Endpoints
+
+- [Assessment History](/api/assessments/history) - List all saved assessments to find assessment IDs
+- [Save Assessment](/api/assessments/save) - Save a new assessment

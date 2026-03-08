@@ -1,0 +1,150 @@
+---
+title: 'Authentication'
+description: 'Learn how to sign up, log in, and manage your EduMate account'
+icon: 'lock'
+---
+
+## Getting Started with EduMate
+
+EduMate provides a secure authentication system to protect your assessment data and ensure only you can access your generated content.
+
+## Creating Your Account
+
+<Steps>
+  <Step title="Navigate to Sign Up">
+    Visit the EduMate signup page and click on "Create Account" or "Sign Up".
+  </Step>
+  
+  <Step title="Enter Your Information">
+    Fill in the registration form with:
+    - **Full Name**: Your complete name (e.g., "Professor John Smith")
+    - **Email Address**: Your institutional or personal email (e.g., "professor@university.edu")
+    - **Password**: A secure password with at least 8 characters
+    
+    <Note>
+      Your password must be at least 8 characters long. Choose a strong, unique password to protect your account.
+    </Note>
+  </Step>
+  
+  <Step title="Submit Registration">
+    Click the "Create Account" button to submit your registration.
+  </Step>
+  
+  <Step title="Confirmation">
+    Upon successful registration, you'll see a confirmation message and be automatically redirected to the login page within 2 seconds.
+    
+    <Info>
+      If an account with your email already exists, you'll receive an error message. Try logging in instead or use a different email address.
+    </Info>
+  </Step>
+</Steps>
+
+## Signing In
+
+Once you have an account, signing in is straightforward:
+
+<Steps>
+  <Step title="Go to Login Page">
+    Navigate to the EduMate login page.
+  </Step>
+  
+  <Step title="Enter Credentials">
+    Provide your:
+    - **Email**: The email address you used during registration
+    - **Password**: Your account password
+    
+    <Tip>
+      Use the eye icon next to the password field to toggle password visibility if you need to verify what you're typing.
+    </Tip>
+  </Step>
+  
+  <Step title="Sign In">
+    Click the "Sign In" button. The system will:
+    - Validate your credentials
+    - Generate a secure access token
+    - Fetch your profile information
+    - Redirect you to the dashboard
+  </Step>
+</Steps>
+
+### Login Troubleshooting
+
+If you see an error message:
+- **"Incorrect email or password"**: Double-check your email and password for typos
+- **Connection errors**: Verify your internet connection and try again
+- **Account not found**: Make sure you've completed the signup process
+
+## Resetting Your Password
+
+Forgot your password? No problem.
+
+<Steps>
+  <Step title="Access Password Reset">
+    On the login page, click the "Forgot Password?" link located next to the password field.
+  </Step>
+  
+  <Step title="Enter Your Email">
+    Provide the email address associated with your EduMate account and click "Continue".
+    
+    <Warning>
+      For security reasons, the system won't confirm whether the email exists in our database. If your email is registered, you'll receive reset instructions.
+    </Warning>
+  </Step>
+  
+  <Step title="Create New Password">
+    After the system processes your request:
+    - Enter your new password
+    - Confirm the new password by entering it again
+    - Ensure both entries match
+    
+    <Note>
+      Your new password must be at least 8 characters long, just like during initial signup.
+    </Note>
+  </Step>
+  
+  <Step title="Complete Reset">
+    Click "Reset Password" to finalize the change. You'll see a success message confirming your password has been updated.
+  </Step>
+  
+  <Step title="Sign In">
+    Use the "Back to Sign In" link to return to the login page and access your account with your new password.
+  </Step>
+</Steps>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Strong Passwords" icon="shield">
+    Use a unique password that's at least 8 characters long and includes a mix of letters, numbers, and symbols.
+  </Card>
+  
+  <Card title="Keep Credentials Private" icon="eye-slash">
+    Never share your password with anyone. EduMate staff will never ask for your password.
+  </Card>
+  
+  <Card title="Sign Out When Done" icon="right-from-bracket">
+    Always sign out when using shared or public computers to protect your account.
+  </Card>
+  
+  <Card title="Update Regularly" icon="rotate">
+    Consider updating your password periodically to maintain account security.
+  </Card>
+</CardGroup>
+
+## Session Management
+
+EduMate uses secure token-based authentication:
+- Your session remains active as long as your access token is valid
+- You can sign out at any time using the "Sign Out" button in the sidebar
+- Signing out will clear your session and require you to log in again
+
+<Tip>
+  Your authentication token is stored securely and used for all API requests. This ensures your data remains protected throughout your session.
+</Tip>
+
+## Next Steps
+
+Now that you're authenticated, you can:
+- [Upload your first document](/guide/uploading-documents)
+- [Generate AI-powered assessments](/guide/generating-assessments)
+- [View your assessment history](/guide/viewing-history)

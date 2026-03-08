@@ -1,0 +1,400 @@
+---
+title: Vector Database Setup
+description: Install and configure Qdrant for semantic search and document embeddings
+---
+
+## Qdrant Overview
+
+EduMate uses Qdrant as a vector database to store document embeddings for semantic search. When PDF documents are uploaded, they are:
+
+1. Split into chunks using `RecursiveCharacterTextSplitter` (15,000 characters with 4,000 character overlap)
+2. Embedded using Ollama's `qwen3-embedding:0.6b` model
+3. Stored in Qdrant collections for fast similarity search
+4. Retrieved during question generation to provide relevant context
+
+## Installation Options
+
+### Option 1: Docker (Recommended)
+
+<Steps>
+  <Step title="Install Docker">
+    Ensure Docker is installed on your system:
+    
+    ```bash
+    docker --version
+    # Expected: Docker version 20.x or higher
+    ```
+    
+    If not installed, visit [Docker Installation Guide](https://docs.docker.com/get-docker/)
+  </Step>
+
+  <Step title="Run Qdrant Container">
+    Pull and run the Qdrant Docker image:
+    
+    ```bash
+    docker pull qdrant/qdrant
+    
+    docker run -d \
+      --name qdrant \
+      -p 6333:6333 \
+      -p 6334:6334 \
+      -v $(pwd)/qdrant_storage:/qdrant/storage \
+      qdrant/qdrant
+    ```
+    
+    <Info>
+    The `-v` flag creates a persistent volume to store vector data even after container restarts.
+    </Info>
+  </Step>
+
+  <Step title="Verify Qdrant is Running">
+    Check container status:
+    
+    ```bash
+    docker ps | grep qdrant
+    ```
+    
+    Test the HTTP API:
+    
+    ```bash
+    curl http://localhost:6333/
+    ```
+    
+    Expected response:
+    ```json
+    {
+      "title": "qdrant - vector search engine",
+      "version": "1.x.x"
+    }
+    ```
+  </Step>
+</Steps>
+
+### Option 2: Native Installation
+
+<CodeGroup>
+
+```bash Ubuntu/Debian
+# Add Qdrant repository
+curl -sSL https://packages.qdrant.tech/setup.sh | bash
+
+# Install Qdrant
+sudo apt install qdrant
+
+# Start Qdrant service
+sudo systemctl start qdrant
+sudo systemctl enable qdrant
+```
+
+```bash macOS (Homebrew)
+brew install qdrant
+
+# Start Qdrant
+brew services start qdrant
+```
+
+```bash From Binary
+# Download latest release
+wget https://github.com/qdrant/qdrant/releases/latest/download/qdrant-x86_64-unknown-linux-gnu.tar.gz
+
+# Extract
+tar -xvf qdrant-x86_64-unknown-linux-gnu.tar.gz
+
+# Run Qdrant
+./qdrant
+```
+
+</CodeGroup>
+
+## Qdrant Configuration
+
+### Port Configuration
+
+Qdrant uses two ports:
+
+- **6333**: HTTP REST API (used by EduMate)
+- **6334**: gRPC API (optional)
+
+<Warning>
+Ensure port 6333 is not blocked by your firewall and is accessible to the FastAPI backend.
+</Warning>
+
+### Storage Configuration
+
+By default, Qdrant stores data in:
+- Docker: `/qdrant/storage` (mapped to host volume)
+- Native: `./storage` in the working directory
+
+```bash
+# Create storage directory
+mkdir -p ~/qdrant_storage
+
+# Run with custom storage path
+docker run -d \
+  --name qdrant \
+  -p 6333:6333 \
+  -v ~/qdrant_storage:/qdrant/storage \
+  qdrant/qdrant
+```
+
+## EduMate Integration
+
+EduMate integrates with Qdrant through LangChain's `QdrantVectorStore`. The configuration is found in `backend/queue/doc_chunking.py` and `backend/queue/chat.py`.
+
+### Document Chunking Configuration
+
+When PDF documents are uploaded, they are processed in `backend/queue/doc_chunking.py`:
+
+```python backend/queue/doc_chunking.py
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_ollama import OllamaEmbeddings
+from langchain_qdrant import QdrantVectorStore
+
+# Split documents into chunks
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=15000,      # 15,000 characters per chunk
+    chunk_overlap=4000     # 4,000 character overlap
+)
+chunks = text_splitter.split_documents(documents=docs)
+
+# Create embeddings using Ollama
+embedding_model = OllamaEmbeddings(
+    model='qwen3-embedding:0.6b',
+    base_url='http://localhost:11434'
+)
+
+# Store in Qdrant
+vector_store = QdrantVectorStore.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    url='http://localhost:6333',
+    collection_name=collection_name,  # Unique per upload
+)
+```
+
+### Vector Search Configuration
+
+During question generation, relevant document chunks are retrieved in `backend/queue/chat.py`:
+
+```python backend/queue/chat.py
+from langchain_qdrant import QdrantVectorStore
+from langchain_ollama import OllamaEmbeddings
+
+def _embedding_model():
+    return OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434',
+    )
+
+def _vector_db(collection_name: str):
+    return QdrantVectorStore.from_existing_collection(
+        url='http://localhost:6333',
+        collection_name=collection_name,
+        embedding=_embedding_model(),
+    )
+
+# Perform similarity search
+vector_db = _vector_db(collection_name)
+search_results = vector_db.similarity_search(query=user_query, k=5)
+```
+
+<Info>
+**Key Parameters:**
+- **chunk_size**: 15,000 characters (larger chunks for more context)
+- **chunk_overlap**: 4,000 characters (prevents context loss at chunk boundaries)
+- **top_k**: 5 most similar chunks retrieved for question generation
+- **embedding_model**: qwen3-embedding:0.6b (must match during indexing and retrieval)
+</Info>
+
+## Collection Management
+
+### Dynamic Collections
+
+EduMate creates a new collection for each uploaded document:
+
+```python
+collection_name = f"edu_mate_{uuid.uuid4().hex}"
+```
+
+This ensures:
+- Isolation between different documents
+- No cross-contamination of content
+- Easy cleanup per document
+
+### List Collections
+
+View all collections via the Qdrant API:
+
+```bash
+curl http://localhost:6333/collections
+```
+
+### View Collection Details
+
+```bash
+curl http://localhost:6333/collections/{collection_name}
+```
+
+Replace `{collection_name}` with the actual collection ID (e.g., `edu_mate_a1b2c3d4...`).
+
+### Delete a Collection
+
+```bash
+curl -X DELETE http://localhost:6333/collections/{collection_name}
+```
+
+<Warning>
+Deleting a collection is permanent! Ensure you have backups if needed.
+</Warning>
+
+## Testing Qdrant Integration
+
+<Steps>
+  <Step title="Check Qdrant Health">
+    ```bash
+    curl http://localhost:6333/healthz
+    ```
+    
+    Expected response:
+    ```json
+    {"status":"ok"}
+    ```
+  </Step>
+
+  <Step title="List Collections">
+    ```bash
+    curl http://localhost:6333/collections
+    ```
+    
+    Should return an empty list initially:
+    ```json
+    {"result":{"collections":[]}}
+    ```
+  </Step>
+
+  <Step title="Test with Python">
+    Create a test script:
+    
+    ```python test_qdrant.py
+    from qdrant_client import QdrantClient
+    
+    client = QdrantClient(url="http://localhost:6333")
+    collections = client.get_collections()
+    print(f"Collections: {collections}")
+    ```
+    
+    Run the test:
+    ```bash
+    python test_qdrant.py
+    ```
+  </Step>
+</Steps>
+
+## Performance Tuning
+
+### Memory Configuration
+
+For large document collections, increase Qdrant's memory limits:
+
+```bash
+docker run -d \
+  --name qdrant \
+  -p 6333:6333 \
+  -v $(pwd)/qdrant_storage:/qdrant/storage \
+  -e QDRANT__STORAGE__STORAGE_PATH=/qdrant/storage \
+  -e QDRANT__SERVICE__MAX_REQUEST_SIZE_MB=100 \
+  --memory=4g \
+  qdrant/qdrant
+```
+
+### Indexing Configuration
+
+Qdrant automatically indexes vectors. For optimal performance with the `qwen3-embedding:0.6b` model (384 dimensions):
+
+```python
+# Default HNSW index parameters (automatically configured)
+# - M: 16 (connections per layer)
+# - ef_construct: 100 (search quality during index construction)
+```
+
+<Tip>
+Qdrant's HNSW index provides excellent performance for similarity search at the scale of EduMate's typical usage.
+</Tip>
+
+## Troubleshooting
+
+### Port 6333 Already in Use
+
+```bash
+# Find process using port 6333
+sudo lsof -i :6333
+
+# Or with netstat
+sudo netstat -tuln | grep 6333
+
+# Stop existing Qdrant container
+docker stop qdrant && docker rm qdrant
+```
+
+### Connection Refused
+
+```bash
+# Check if Qdrant is running
+docker ps | grep qdrant
+
+# View Qdrant logs
+docker logs qdrant
+
+# Restart Qdrant
+docker restart qdrant
+```
+
+### Collection Not Found
+
+Ensure the collection name matches exactly:
+
+```python
+# Collections are created during chunking
+collection_name = f"edu_mate_{uuid.uuid4().hex}"
+
+# This exact name must be used during chat
+vector_db = _vector_db(collection_name=collection_name)
+```
+
+## Backup and Recovery
+
+### Backup Qdrant Data
+
+```bash
+# Stop Qdrant
+docker stop qdrant
+
+# Backup storage directory
+tar -czf qdrant_backup_$(date +%Y%m%d).tar.gz qdrant_storage/
+
+# Start Qdrant
+docker start qdrant
+```
+
+### Restore from Backup
+
+```bash
+# Stop Qdrant
+docker stop qdrant
+
+# Remove existing data
+rm -rf qdrant_storage/*
+
+# Extract backup
+tar -xzf qdrant_backup_YYYYMMDD.tar.gz
+
+# Start Qdrant
+docker start qdrant
+```
+
+## Next Steps
+
+With Qdrant configured, proceed to set up Ollama for embeddings and language models:
+
+- [Ollama Setup](/deployment/ollama-setup) - Install Ollama and download required models
+- [Backend Deployment](/deployment/backend) - The backend will automatically create collections when documents are uploaded

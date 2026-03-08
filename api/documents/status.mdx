@@ -1,0 +1,112 @@
+---
+title: "Check Chunking Status"
+api: "GET /chunking/status"
+description: "Check the status of a document chunking job"
+---
+
+## Overview
+
+This endpoint retrieves the current status of a background document chunking job. Use the `job_id` returned from the `/chunking` endpoint to track the progress of your document processing.
+
+## Request
+
+### Query Parameters
+
+<ParamField query="job_id" type="string" required>
+  The unique job identifier returned by the `/chunking` endpoint.
+</ParamField>
+
+## Response
+
+<ResponseField name="status" type="string" required>
+  Current status of the job. Possible values:
+  - `"queued"` - Job is waiting to be processed
+  - `"started"` - Job is currently processing
+  - `"chunked"` - Job completed successfully
+  - `"failed"` - Job encountered an error
+  - `null` - Job ID not found
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  Job result object, only present when status is `"chunked"`. Contains processing results and metadata.
+  
+  <Expandable title="result properties">
+    <ResponseField name="stored" type="boolean">
+      Indicates whether the chunks were successfully stored in the vector database.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if the job failed. Contains exception information.
+</ResponseField>
+
+## Example
+
+### Check job status
+
+```bash
+curl -X GET "http://localhost:8000/chunking/status?job_id=a3f7b9c1-4e5d-6789-0abc-def123456789"
+```
+
+### Response (Queued)
+
+```json
+{
+  "status": "queued"
+}
+```
+
+### Response (Processing)
+
+```json
+{
+  "status": "started"
+}
+```
+
+### Response (Completed)
+
+```json
+{
+  "status": "chunked",
+  "result": {
+    "stored": true,
+    "chunks_created": 42,
+    "collection_name": "edu_mate_a1b2c3d4e5f67890abcdef1234567890"
+  }
+}
+```
+
+### Response (Failed)
+
+```json
+{
+  "status": "failed",
+  "error": "PDFSyntaxError: Invalid PDF file format"
+}
+```
+
+### Response (Job Not Found)
+
+```json
+{
+  "status": null
+}
+```
+
+## Usage Pattern
+
+<Note>
+Implement polling to monitor job progress. A typical workflow:
+
+1. Submit document via `POST /chunking`
+2. Receive `job_id` in response
+3. Poll `GET /chunking/status?job_id=<job_id>` every 2-5 seconds
+4. When status is `"chunked"`, proceed with using the `collection_name` for queries
+5. If status is `"failed"`, handle the error appropriately
+</Note>
+
+<Tip>
+For long-running jobs, consider implementing exponential backoff in your polling strategy to reduce server load.
+</Tip>

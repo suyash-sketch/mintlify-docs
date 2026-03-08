@@ -1,0 +1,308 @@
+---
+title: "Quickstart"
+description: "Generate your first AI-powered assessment in under 10 minutes"
+---
+
+Get started with EduMate and create your first Bloom's taxonomy-aligned assessment from your educational materials in minutes.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Python 3.8 or higher installed
+- Node.js 16 or higher and npm
+- PostgreSQL database running
+- Qdrant vector database running
+- Ollama with embedding model installed
+- Redis server running
+- A Google Gemini API key (for AI generation)
+
+<Info>
+If you haven't installed these dependencies yet, follow our complete [Installation Guide](/installation) first.
+</Info>
+
+## Get Started
+
+<Steps>
+  <Step title="Clone and Set Up the Project">
+    Clone the repository and navigate to the project directory:
+
+    ```bash
+    git clone <repository-url>
+    cd edu-mate
+    ```
+
+    Install Python dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    Install frontend dependencies:
+
+    ```bash
+    cd frontend
+    npm install
+    cd ..
+    ```
+  </Step>
+
+  <Step title="Configure Your Database">
+    Create a PostgreSQL database for EduMate:
+
+    ```bash
+    createdb edumate
+    createuser edumate_user -P
+    # Enter password: edumate_pass when prompted
+    ```
+
+    Update the database connection in `backend/database.py`:
+
+    ```python backend/database.py
+    SQLALCHEMY_DATABASE_URL = "postgresql://edumate_user:edumate_pass@localhost:5432/edumate"
+    ```
+
+    <Note>
+    The database tables will be created automatically when you start the server for the first time.
+    </Note>
+  </Step>
+
+  <Step title="Set Up Your Environment">
+    Create a `.env` file in the project root and add your Gemini API key:
+
+    ```bash
+    GEMINI_API_KEY=your_gemini_api_key_here
+    ```
+
+    Ensure all required services are running:
+
+    - **PostgreSQL**: Port 5432
+    - **Qdrant**: Port 6333
+    - **Redis**: Port 6379
+    - **Ollama**: Port 11434
+
+    <Tip>
+    You can verify Ollama is running by visiting `http://localhost:11434` in your browser.
+    </Tip>
+  </Step>
+
+  <Step title="Start the Backend Server">
+    Start the Redis queue worker in one terminal:
+
+    ```bash
+    rq worker
+    ```
+
+    Start the FastAPI backend server in another terminal:
+
+    ```bash
+    python -m backend.main
+    ```
+
+    The API server will be available at `http://localhost:8000`.
+  </Step>
+
+  <Step title="Start the Frontend (Optional)">
+    For development, you can run the React frontend:
+
+    ```bash
+    cd frontend
+    npm run dev
+    ```
+
+    Or build it for production:
+
+    ```bash
+    cd frontend
+    npm run build
+    cd ..
+    ```
+
+    <Info>
+    If you build the frontend, the FastAPI server will automatically serve it from `http://localhost:8000`.
+    </Info>
+  </Step>
+
+  <Step title="Create Your Account">
+    Register a new account using the signup endpoint:
+
+    ```bash
+    curl -X POST http://localhost:8000/api/signup \
+      -H "Content-Type: application/json" \
+      -d '{
+        "name": "John Doe",
+        "email": "john@example.com",
+        "password": "your_secure_password"
+      }'
+    ```
+
+    Then login to get your access token:
+
+    ```bash
+    curl -X POST http://localhost:8000/api/login \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -d "username=john@example.com&password=your_secure_password"
+    ```
+
+    Save the `access_token` from the response - you'll need it for authenticated requests.
+  </Step>
+
+  <Step title="Upload Your First Document">
+    Upload a PDF document to be processed and indexed:
+
+    ```bash
+    curl -X POST http://localhost:8000/chunking \
+      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+      -F "file=@/path/to/your/document.pdf"
+    ```
+
+    The response will include a `job_id` and `collection_name`:
+
+    ```json
+    {
+      "status": "queued",
+      "job_id": "abc123-def456",
+      "collection_name": "edu_mate_7f3a2b..."
+    }
+    ```
+
+    <Note>
+    The document will be chunked into smaller pieces and embedded using Ollama's `qwen3-embedding:0.6b` model, then stored in Qdrant for semantic search.
+    </Note>
+  </Step>
+
+  <Step title="Check Processing Status">
+    Monitor the chunking job status:
+
+    ```bash
+    curl http://localhost:8000/chunking/status?job_id=YOUR_JOB_ID
+    ```
+
+    Wait until you get a response with `"status": "chunked"`:
+
+    ```json
+    {
+      "status": "chunked",
+      "result": {
+        "stored": true,
+        "chunks": 42,
+        "collection_name": "edu_mate_7f3a2b..."
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Generate Your First Assessment">
+    Generate multiple-choice questions based on your document:
+
+    ```bash
+    curl -X POST "http://localhost:8000/chat" \
+      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+      -d "query=Generate MCQs for Node.js fundamentals" \
+      -d "collection_name=edu_mate_7f3a2b..." \
+      -d "blooms_requirements=5 remember, 3 understand, 4 apply, 3 analyze, 2 evaluate, 3 create"
+    ```
+
+    This returns a job ID:
+
+    ```json
+    {
+      "status": "queued",
+      "job_id": "xyz789-uvw012"
+    }
+    ```
+
+    Check the job status:
+
+    ```bash
+    curl http://localhost:8000/job_status?job_id=YOUR_JOB_ID
+    ```
+
+    When complete, you'll receive structured MCQs:
+
+    ```json
+    {
+      "status": "finished",
+      "result": {
+        "mcqs": [
+          {
+            "question_no": "1",
+            "bloom_level": "remember",
+            "question": "What is the primary purpose of Node.js?",
+            "answer_options": [
+              "Server-side JavaScript runtime",
+              "Frontend framework",
+              "Database management system",
+              "CSS preprocessor"
+            ],
+            "correct_answer": "Server-side JavaScript runtime",
+            "explaination": "Node.js is a runtime environment that allows JavaScript to be executed on the server side."
+          }
+        ]
+      }
+    }
+    ```
+
+    <Tip>
+    The Bloom's taxonomy requirements string controls how many questions are generated at each cognitive level. Adjust these numbers based on your assessment needs.
+    </Tip>
+  </Step>
+
+  <Step title="Save Your Assessment">
+    Save the generated assessment to your database:
+
+    ```bash
+    curl -X POST http://localhost:8000/api/assessments/save \
+      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "chapter_name": "Node.js Fundamentals",
+        "bloom_factors": {
+          "remember": 5,
+          "understand": 3,
+          "apply": 4,
+          "analyze": 3,
+          "evaluate": 2,
+          "create": 3
+        },
+        "content_json": {
+          "mcqs": [...]
+        }
+      }'
+    ```
+  </Step>
+</Steps>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Detailed setup instructions for all dependencies
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/signup">
+    Complete API documentation for all endpoints
+  </Card>
+  <Card title="RAG System" icon="diagram-project" href="/features/rag-system">
+    Learn about EduMate's RAG architecture
+  </Card>
+  <Card title="Bloom's Taxonomy" icon="brain" href="/features/blooms-taxonomy">
+    Understanding cognitive levels in assessments
+  </Card>
+</CardGroup>
+
+## Common Issues
+
+<Warning>
+**Job keeps failing?** Make sure:
+- Ollama has the `qwen3-embedding:0.6b` model pulled: `ollama pull qwen3-embedding:0.6b`
+- Qdrant is accessible at `http://localhost:6333`
+- Your PDF contains extractable text (not just images)
+- Redis worker is running in a separate terminal
+</Warning>
+
+<Warning>
+**Authentication errors?** Verify:
+- Your access token is included in the `Authorization: Bearer YOUR_TOKEN` header
+- The token hasn't expired (24-hour expiration by default)
+- You're using the correct email/password combination
+</Warning>

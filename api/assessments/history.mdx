@@ -1,0 +1,122 @@
+---
+title: 'Assessment History'
+api: 'GET /api/assessments/history'
+---
+
+Retrieves a list of all saved assessments for the authenticated user, ordered by creation date (newest first).
+
+## Authentication
+
+This endpoint requires authentication. Include a valid JWT token in the Authorization header:
+
+```
+Authorization: Bearer <your_access_token>
+```
+
+## Request
+
+No parameters required. The endpoint automatically filters assessments by the authenticated user.
+
+## Response
+
+Returns an array of assessment history items.
+
+<ResponseField name="response" type="array">
+  Array of saved assessments.
+  
+  <Expandable title="AssessmentHistoryItem properties">
+    <ResponseField name="id" type="integer">
+      Unique identifier for the assessment. Use with [Get Assessment](/api/assessments/get) to retrieve full content.
+    </ResponseField>
+    
+    <ResponseField name="chapter_name" type="string">
+      The chapter or topic name for this assessment.
+    </ResponseField>
+    
+    <ResponseField name="questions" type="integer">
+      Total number of questions in this assessment (counts MCQs in the content).
+    </ResponseField>
+    
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp of when the assessment was saved.
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Always returns `"completed"` for saved assessments.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X GET "http://localhost:8000/api/assessments/history" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+## Example Response
+
+```json
+[
+  {
+    "id": 42,
+    "chapter_name": "Chapter 3: Photosynthesis",
+    "questions": 20,
+    "created_at": "2026-03-08T14:32:15.123456",
+    "status": "completed"
+  },
+  {
+    "id": 38,
+    "chapter_name": "Chapter 2: Cell Structure",
+    "questions": 15,
+    "created_at": "2026-03-07T09:15:42.789012",
+    "status": "completed"
+  },
+  {
+    "id": 35,
+    "chapter_name": "Chapter 1: Introduction to Biology",
+    "questions": 18,
+    "created_at": "2026-03-06T16:20:33.456789",
+    "status": "completed"
+  }
+]
+```
+
+## Empty Response
+
+If the user has no saved assessments:
+
+```json
+[]
+```
+
+## Error Responses
+
+### 401 Unauthorized
+
+Returned when the Authorization header is missing or contains an invalid token.
+
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+## Notes
+
+- Results are ordered by `created_at` in descending order (newest first)
+- Only assessments belonging to the authenticated user are returned
+- The `questions` count is calculated by counting MCQs in the stored `content_json`
+- Use the `id` field with the [Get Assessment](/api/assessments/get) endpoint to retrieve full assessment details including all questions and answers
+
+## Use Cases
+
+- Display a dashboard of past assessments
+- Allow users to browse and select previous assessments for review
+- Show assessment creation dates and question counts for quick reference
+- Track assessment generation history over time
+
+## Related Endpoints
+
+- [Get Assessment](/api/assessments/get) - Retrieve full details of a specific assessment
+- [Save Assessment](/api/assessments/save) - Save a new assessment to history

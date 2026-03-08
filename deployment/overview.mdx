@@ -1,0 +1,178 @@
+---
+title: Deployment Overview
+description: Complete deployment guide for the EduMate application
+---
+
+## Architecture Overview
+
+EduMate is an AI-powered educational assessment platform that generates multiple-choice questions based on PDF documents using Bloom's Taxonomy. The system consists of several interconnected components working together to provide a seamless experience.
+
+### System Architecture
+
+```mermaid
+graph TB
+    A[React Frontend<br/>Vite + React 19] --> B[FastAPI Backend<br/>Port 8000]
+    B --> C[PostgreSQL<br/>Port 5432]
+    B --> D[Redis Queue<br/>Port 6379]
+    B --> E[Qdrant Vector DB<br/>Port 6333]
+    B --> F[Ollama<br/>Port 11434]
+    D --> G[RQ Workers]
+    G --> E
+    G --> F
+    F --> H[Embedding Model<br/>qwen3-embedding:0.6b]
+    F --> I[Chat Models<br/>llama3.2:1b]
+    B --> J[Gemini API<br/>gemini-2.5-flash-lite]
+```
+
+## Infrastructure Components
+
+<Steps>
+  <Step title="PostgreSQL Database">
+    Stores user accounts, authentication data, and assessment history
+    - **Port**: 5432
+    - **Database**: edumate
+    - **User**: edumate_user
+  </Step>
+
+  <Step title="Qdrant Vector Database">
+    Stores document embeddings for semantic search
+    - **Port**: 6333
+    - **Collections**: Dynamic (created per uploaded document)
+  </Step>
+
+  <Step title="Redis Queue">
+    Manages background job processing for document chunking and question generation
+    - **Port**: 6379
+    - **Queue**: RQ (Redis Queue)
+  </Step>
+
+  <Step title="Ollama">
+    Provides local LLM inference for embeddings and chat
+    - **Port**: 11434
+    - **Models**: qwen3-embedding:0.6b, llama3.2:1b
+  </Step>
+
+  <Step title="Gemini API">
+    External API for advanced question generation
+    - **Model**: gemini-2.5-flash-lite
+    - **API**: Google Generative Language API
+  </Step>
+
+  <Step title="FastAPI Backend">
+    RESTful API server handling all business logic
+    - **Port**: 8000
+    - **Framework**: FastAPI with Uvicorn
+  </Step>
+
+  <Step title="React Frontend">
+    Modern web interface built with React and Vite
+    - **Dev Port**: 5173 (default Vite)
+    - **Framework**: React 19 with React Router
+  </Step>
+</Steps>
+
+## System Requirements
+
+### Hardware Requirements
+
+<Info>
+**Minimum Requirements**
+- **CPU**: 4 cores (8 cores recommended)
+- **RAM**: 8GB (16GB recommended for Ollama models)
+- **Storage**: 20GB free space
+- **GPU**: Optional (improves Ollama performance)
+</Info>
+
+### Software Requirements
+
+- **Operating System**: Linux (Ubuntu 20.04+), macOS, or Windows with WSL2
+- **Python**: 3.9 or higher
+- **Node.js**: 18.x or higher
+- **PostgreSQL**: 13 or higher
+- **Redis**: 6.x or higher
+- **Docker**: Optional (for Qdrant)
+
+## Deployment Workflow
+
+<Steps>
+  <Step title="Set Up Databases">
+    Install and configure PostgreSQL and Qdrant vector database
+    
+    See: [Database Setup](/deployment/database-setup) and [Vector Database Setup](/deployment/vector-db)
+  </Step>
+
+  <Step title="Install Ollama">
+    Install Ollama and download required AI models
+    
+    See: [Ollama Setup](/deployment/ollama-setup)
+  </Step>
+
+  <Step title="Deploy Backend">
+    Configure Python environment and start the FastAPI server
+    
+    See: [Backend Deployment](/deployment/backend)
+  </Step>
+
+  <Step title="Deploy Frontend">
+    Build and serve the React application
+    
+    See: [Frontend Deployment](/deployment/frontend)
+  </Step>
+
+  <Step title="Start Services">
+    Launch all required services in the correct order:
+    1. PostgreSQL
+    2. Redis
+    3. Qdrant
+    4. Ollama
+    5. RQ Worker
+    6. FastAPI Backend
+    7. React Frontend (development) or serve built files
+  </Step>
+</Steps>
+
+## Network Ports
+
+Ensure the following ports are available:
+
+| Service | Port | Protocol | Description |
+|---------|------|----------|-------------|
+| FastAPI | 8000 | HTTP | Backend API server |
+| Vite Dev Server | 5173 | HTTP | Frontend dev server |
+| PostgreSQL | 5432 | TCP | Database |
+| Redis | 6379 | TCP | Queue backend |
+| Qdrant | 6333 | HTTP | Vector database |
+| Ollama | 11434 | HTTP | LLM inference |
+
+<Warning>
+Make sure all ports are free before starting the deployment. Use `netstat -tuln` or `lsof -i` to check port availability.
+</Warning>
+
+## Environment Variables
+
+The following environment variables need to be configured:
+
+```bash
+# Gemini API (Required for question generation)
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Database (configured in backend/database.py)
+DATABASE_URL=postgresql://edumate_user:edumate_pass@localhost:5432/edumate
+
+# JWT Secret (configured in backend/server.py)
+SECRET_KEY=super_secret_edumate_key
+```
+
+<Tip>
+Create a `.env` file in the project root to store environment variables. The backend uses `python-dotenv` to load these automatically.
+</Tip>
+
+## Next Steps
+
+Follow the deployment guides in order:
+
+1. [Database Setup](/deployment/database-setup) - Set up PostgreSQL
+2. [Vector Database Setup](/deployment/vector-db) - Configure Qdrant
+3. [Ollama Setup](/deployment/ollama-setup) - Install and configure Ollama
+4. [Backend Deployment](/deployment/backend) - Deploy the FastAPI server
+5. [Frontend Deployment](/deployment/frontend) - Build and serve the React app

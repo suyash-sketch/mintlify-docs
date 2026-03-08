@@ -1,0 +1,67 @@
+---
+title: "Sign Up"
+api: "POST /api/signup"
+description: "Create a new user account"
+---
+
+Creates a new user account in the EduMate system. This endpoint validates that the email is not already registered and securely hashes the password before storing it.
+
+## Request
+
+<ParamField body="name" type="string" required>
+  The full name of the user
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  The email address for the user account. Must be unique.
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The password for the account. Will be securely hashed before storage.
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="integer">
+  The unique identifier for the newly created user
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  The user's full name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  The user's email address
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8000/api/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "securepassword123"
+  }'
+```
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+```
+
+## Error Responses
+
+<Expandable title="400 - Email already registered">
+  ```json
+  {
+    "detail": "Email already registered"
+  }
+  ```
+</Expandable>

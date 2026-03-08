@@ -1,0 +1,439 @@
+---
+title: Ollama Setup
+description: Install Ollama and configure AI models for embeddings and inference
+---
+
+## Ollama Overview
+
+EduMate uses Ollama to run local language models for:
+
+1. **Text Embeddings**: Converting document chunks to vectors using `qwen3-embedding:0.6b`
+2. **Chat/Inference**: Generating questions (alternative to Gemini API) using `llama3.2:1b`
+
+Ollama provides a simple API on port 11434 that's compatible with OpenAI's API format.
+
+## Installation
+
+### Install Ollama
+
+<CodeGroup>
+
+```bash Linux
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+```bash macOS
+# Download from https://ollama.com/download
+# Or use Homebrew
+brew install ollama
+```
+
+```bash Windows
+# Download installer from https://ollama.com/download
+# Run the installer and follow the setup wizard
+```
+
+</CodeGroup>
+
+### Verify Installation
+
+```bash
+ollama --version
+# Expected output: ollama version 0.x.x
+```
+
+## Start Ollama Service
+
+<Steps>
+  <Step title="Start Ollama Server">
+    Ollama runs as a background service on port 11434:
+    
+    <CodeGroup>
+    
+    ```bash Linux (systemd)
+    # Ollama should start automatically after installation
+    # Check status
+    sudo systemctl status ollama
+    
+    # Start if not running
+    sudo systemctl start ollama
+    
+    # Enable auto-start on boot
+    sudo systemctl enable ollama
+    ```
+    
+    ```bash macOS
+    # Ollama runs automatically when you use it
+    # Or start manually
+    ollama serve
+    ```
+    
+    ```bash Manual Start
+    # Run in foreground (for debugging)
+    ollama serve
+    
+    # Run in background (Linux/macOS)
+    nohup ollama serve > /dev/null 2>&1 &
+    ```
+    
+    </CodeGroup>
+  </Step>
+
+  <Step title="Verify Service">
+    Check if Ollama is accessible:
+    
+    ```bash
+    curl http://localhost:11434
+    ```
+    
+    Expected response:
+    ```
+    Ollama is running
+    ```
+  </Step>
+</Steps>
+
+<Info>
+Ollama binds to `localhost:11434` by default. The EduMate backend connects to `http://localhost:11434`.
+</Info>
+
+## Download Required Models
+
+EduMate requires specific models for embeddings and text generation.
+
+### Embedding Model: qwen3-embedding:0.6b
+
+<Steps>
+  <Step title="Pull qwen3-embedding Model">
+    This model generates 384-dimensional embeddings for document chunks:
+    
+    ```bash
+    ollama pull qwen3-embedding:0.6b
+    ```
+    
+    <Info>
+    Model size: ~600MB
+    Download time: 2-5 minutes (depending on connection)
+    </Info>
+  </Step>
+
+  <Step title="Test Embedding Model">
+    Verify the model works:
+    
+    ```bash
+    ollama run qwen3-embedding:0.6b "Test embedding"
+    ```
+    
+    Or test with API:
+    ```bash
+    curl http://localhost:11434/api/embeddings -d '{
+      "model": "qwen3-embedding:0.6b",
+      "prompt": "The quick brown fox jumps over the lazy dog"
+    }'
+    ```
+  </Step>
+</Steps>
+
+### Chat Model: llama3.2:1b
+
+This model can be used for question generation (alternative to Gemini):
+
+```bash
+ollama pull llama3.2:1b
+```
+
+<Info>
+Model size: ~1.3GB
+RAM required: ~2GB during inference
+</Info>
+
+### Optional: Gemini Integration
+
+EduMate primarily uses **Gemini API** (`gemini-2.5-flash-lite`) for question generation because it produces better structured outputs. However, the code supports Ollama models as an alternative:
+
+```python backend/queue/chat.py
+# Current configuration (Gemini API)
+open_ai_client = OpenAI(
+    api_key=GEMINI_API_KEY,
+    base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+)
+
+# Alternative: Use Ollama (commented out)
+# open_ai_client = OpenAI(
+#     base_url="http://localhost:11434/v1",
+#     api_key="ollama"
+# )
+```
+
+<Tip>
+To use Ollama for question generation instead of Gemini, uncomment the Ollama client configuration and comment out the Gemini client in `backend/queue/chat.py`.
+</Tip>
+
+## Model Configuration in EduMate
+
+### Embedding Configuration
+
+The embedding model is used in both document chunking and retrieval:
+
+```python backend/queue/doc_chunking.py
+from langchain_ollama import OllamaEmbeddings
+
+embedding_model = OllamaEmbeddings(
+    model='qwen3-embedding:0.6b',
+    base_url='http://localhost:11434'
+)
+```
+
+```python backend/queue/chat.py
+def _embedding_model():
+    return OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434',
+    )
+```
+
+<Warning>
+**Critical**: The same embedding model (`qwen3-embedding:0.6b`) must be used for both indexing and retrieval. Changing models will break semantic search!
+</Warning>
+
+### Chat Model Configuration
+
+The chat model is used for question generation (when not using Gemini):
+
+```python backend/queue/chat.py
+from ollama import Client
+
+ollama_client = Client(
+    host='http://localhost:11434'
+)
+
+# Example usage (currently commented out)
+# response = ollama_client.chat(
+#     model='llama3.2:1b',
+#     messages=[
+#         {'role': 'system', 'content': SYSTEM_PROMPT},
+#         {'role': 'user', 'content': user_query}
+#     ]
+# )
+```
+
+## List Installed Models
+
+View all downloaded models:
+
+```bash
+ollama list
+```
+
+Expected output:
+```
+NAME                      ID              SIZE      MODIFIED
+qwen3-embedding:0.6b      abc123def456    600 MB    2 hours ago
+llama3.2:1b              def789ghi012    1.3 GB    2 hours ago
+```
+
+## Model Management
+
+### Delete a Model
+
+```bash
+ollama rm llama3.2:1b
+```
+
+### Update a Model
+
+```bash
+ollama pull qwen3-embedding:0.6b
+```
+
+### Show Model Details
+
+```bash
+ollama show qwen3-embedding:0.6b
+```
+
+## Performance Optimization
+
+### GPU Acceleration
+
+If you have an NVIDIA GPU, Ollama automatically uses it for faster inference:
+
+```bash
+# Check if GPU is detected
+nvidia-smi
+
+# Ollama will automatically use CUDA if available
+# You'll see "Using GPU" in the logs
+```
+
+### CPU Optimization
+
+For CPU-only systems:
+
+```bash
+# Set thread count (adjust based on your CPU cores)
+export OLLAMA_NUM_THREADS=8
+
+# Restart Ollama
+sudo systemctl restart ollama
+```
+
+### Memory Configuration
+
+```bash
+# Set context size (default: 2048)
+export OLLAMA_NUM_CTX=4096
+
+# Set batch size (default: 512)
+export OLLAMA_NUM_BATCH=256
+```
+
+<Tip>
+For the embedding model `qwen3-embedding:0.6b`, default settings are sufficient. It's lightweight and fast even on CPU.
+</Tip>
+
+## Testing Ollama Integration
+
+<Steps>
+  <Step title="Test Embedding API">
+    ```bash
+    curl http://localhost:11434/api/embeddings -d '{
+      "model": "qwen3-embedding:0.6b",
+      "prompt": "Test document chunk for embedding"
+    }'
+    ```
+    
+    Expected: JSON response with 384-dimensional vector
+  </Step>
+
+  <Step title="Test with Python">
+    Create a test script:
+    
+    ```python test_ollama.py
+    from langchain_ollama import OllamaEmbeddings
+    
+    embeddings = OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434'
+    )
+    
+    vector = embeddings.embed_query("Test query")
+    print(f"Vector dimension: {len(vector)}")
+    print(f"First 5 values: {vector[:5]}")
+    ```
+    
+    Run:
+    ```bash
+    python test_ollama.py
+    ```
+    
+    Expected output:
+    ```
+    Vector dimension: 384
+    First 5 values: [0.123, -0.456, 0.789, ...]
+    ```
+  </Step>
+
+  <Step title="Test Chat Model (Optional)">
+    ```bash
+    ollama run llama3.2:1b "What is the capital of France?"
+    ```
+    
+    Expected: Coherent response from the model
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Port 11434 Already in Use
+
+```bash
+# Check what's using the port
+sudo lsof -i :11434
+
+# Stop existing Ollama
+sudo systemctl stop ollama
+
+# Or kill process
+sudo pkill ollama
+```
+
+### Model Not Found
+
+```bash
+# List installed models
+ollama list
+
+# Pull missing model
+ollama pull qwen3-embedding:0.6b
+```
+
+### Connection Refused
+
+```bash
+# Check if Ollama is running
+sudo systemctl status ollama
+
+# View logs
+journalctl -u ollama -n 50 -f
+
+# Restart Ollama
+sudo systemctl restart ollama
+```
+
+### Out of Memory
+
+If you get OOM errors:
+
+```bash
+# Use smaller context window
+export OLLAMA_NUM_CTX=2048
+
+# Reduce batch size
+export OLLAMA_NUM_BATCH=128
+
+# Restart Ollama
+sudo systemctl restart ollama
+```
+
+### Slow Inference
+
+```bash
+# Check system resources
+htop
+
+# Monitor Ollama process
+top -p $(pgrep ollama)
+
+# For CPU systems, increase threads
+export OLLAMA_NUM_THREADS=$(nproc)
+```
+
+## Environment Variables
+
+Common Ollama environment variables:
+
+```bash ~/.bashrc or ~/.zshrc
+# Server configuration
+export OLLAMA_HOST=0.0.0.0:11434  # Listen on all interfaces
+export OLLAMA_ORIGINS=*            # Allow CORS from all origins
+
+# Performance tuning
+export OLLAMA_NUM_THREADS=8        # CPU threads
+export OLLAMA_NUM_CTX=4096         # Context window
+export OLLAMA_NUM_BATCH=512        # Batch size
+
+# GPU settings (if available)
+export OLLAMA_GPU_LAYERS=33        # Layers to offload to GPU
+```
+
+## Next Steps
+
+With Ollama configured and models downloaded, proceed to deploy the backend:
+
+- [Backend Deployment](/deployment/backend) - Set up the FastAPI server and RQ workers
+- [Frontend Deployment](/deployment/frontend) - Build and serve the React application
+
+<Info>
+Remember to obtain a **Gemini API key** from [Google AI Studio](https://aistudio.google.com/app/apikey) for question generation, or modify the code to use Ollama's `llama3.2:1b` instead.
+</Info>

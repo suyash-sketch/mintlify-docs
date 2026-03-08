@@ -1,0 +1,237 @@
+---
+title: 'Document Processing'
+description: 'Learn how EduMate processes PDFs, chunks documents, and generates embeddings for intelligent assessment generation'
+---
+
+## Overview
+
+EduMate transforms educational PDF documents into a searchable knowledge base through a multi-stage processing pipeline. The system loads PDFs, splits them into semantic chunks, and generates vector embeddings for efficient retrieval.
+
+## Processing Pipeline
+
+<Steps>
+  <Step title="PDF Discovery">
+    The system finds PDF files from various input sources including:
+    - Individual PDF files
+    - Directories containing PDFs
+    - Glob patterns for batch processing
+    
+    Files are deduplicated by resolving their absolute paths to ensure each document is processed only once.
+  </Step>
+  
+  <Step title="Document Loading">
+    PDFs are loaded using LangChain's `PyPDFLoader`, which extracts text content page by page. Each page becomes a separate document with metadata including the source file path.
+  </Step>
+  
+  <Step title="Text Chunking">
+    Documents are split into smaller, overlapping chunks using `RecursiveCharacterTextSplitter` to maintain semantic coherence while staying within embedding model limits.
+  </Step>
+  
+  <Step title="Vector Embedding">
+    Each chunk is converted to a vector embedding using the Qwen3 embedding model and stored in Qdrant vector database for similarity search.
+  </Step>
+</Steps>
+
+## PDF Discovery and Loading
+
+The `find_pdfs()` function intelligently handles multiple input formats:
+
+```python
+def find_pdfs(inputs):
+    if isinstance(inputs, (str, Path)):
+        inputs = [str(inputs)]
+    pdfs = []
+    for s in inputs:
+        p = Path(s).expanduser()
+        if p.is_dir():
+            pdfs.extend(sorted(p.glob("*.pdf")))
+        elif "*" in s or "?" in s:
+            for m in glob.glob(s):
+                mp = Path(m)
+                if mp.is_file() and mp.suffix.lower() == '.pdf':
+                    pdfs.append(mp)
+        elif p.is_file() and p.suffix.lower() == '.pdf':
+            pdfs.append(p)
+```
+
+Documents are loaded with the `PyPDFLoader`, preserving source metadata:
+
+```python
+def load_all(pdfs):
+    docs = []
+    for pdf in pdfs:
+        try:
+            print("Loading ", pdf)
+            loader = PyPDFLoader(str(pdf))
+            loaded = loader.load()
+            if not loaded:
+                print(f"Warning: {pdf} loaded 0 pages (no extractable text).", file=sys.stderr)
+            for d in loaded:
+                d.metadata = d.metadata or {}
+                d.metadata['source'] = str(pdf)
+            docs.extend(loaded)
+        except Exception as e:
+            print(f"Error Loading {pdf}: {e}", file=sys.stderr)
+    return docs
+```
+
+<Note>
+The system gracefully handles PDFs with no extractable text and logs warnings for debugging.
+</Note>
+
+## Text Chunking Configuration
+
+EduMate uses `RecursiveCharacterTextSplitter` with carefully tuned parameters to balance context preservation and embedding efficiency:
+
+```python
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 15000,
+    chunk_overlap = 4000
+)
+
+chunks = text_splitter.split_documents(documents=docs)
+```
+
+### Chunking Parameters
+
+<CardGroup cols={2}>
+  <Card title="Chunk Size" icon="scissors">
+    **15,000 characters** - Large enough to capture complete concepts and maintain semantic coherence across paragraphs and sections.
+  </Card>
+  
+  <Card title="Chunk Overlap" icon="layer-group">
+    **4,000 characters** - Ensures continuity between chunks and prevents important information from being split across boundaries.
+  </Card>
+</CardGroup>
+
+<Info>
+The large chunk size (15,000 characters) is optimized for educational content, allowing entire topics and concepts to remain together in a single retrievable unit.
+</Info>
+
+### Why These Values?
+
+- **Large chunks** preserve complete explanations, formulas, and multi-step procedures
+- **Significant overlap** ensures that concepts spanning chunk boundaries are captured in multiple chunks
+- **Better context** for the LLM when generating questions, as each retrieved chunk contains more complete information
+
+## Vector Embeddings
+
+EduMate uses the **Qwen3 embedding model** to convert text chunks into high-dimensional vector representations:
+
+```python
+embedding_model = OllamaEmbeddings(
+    model='qwen3-embedding:0.6b',
+    base_url='http://localhost:11434'
+)
+
+vector_store = QdrantVectorStore.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    url='http://localhost:6333',
+    collection_name=collection_name,
+)
+```
+
+### Embedding Model: qwen3-embedding:0.6b
+
+<Accordion title="Why Qwen3 Embedding?">
+  - **Lightweight**: 0.6B parameters allows fast local inference via Ollama
+  - **Multilingual**: Supports educational content in multiple languages
+  - **High quality**: Produces semantically meaningful embeddings for similarity search
+  - **Local deployment**: Runs entirely on-premises without external API calls
+</Accordion>
+
+## Vector Storage in Qdrant
+
+Processed chunks are stored in [Qdrant](https://qdrant.tech), a high-performance vector database:
+
+- Each document collection is stored separately (e.g., "chemistry", "physics")
+- Chunks are indexed by their vector embeddings for fast similarity search
+- Metadata (source file, page number) is preserved for traceability
+
+```python
+vector_store = QdrantVectorStore.from_documents(
+    documents=chunks,
+    embedding=embedding_model,
+    url='http://localhost:6333',
+    collection_name=collection_name,
+)
+```
+
+<Warning>
+Ensure Qdrant is running at `http://localhost:6333` before processing documents. The system expects the vector database to be accessible during chunk storage.
+</Warning>
+
+## Processing Return Value
+
+After successful processing, the system returns metadata about the operation:
+
+```python
+return {
+    "stored": True,
+    "chunks": len(chunks),
+    "source": str(pdf_paths[0]),
+    "collection_name": collection_name,
+}
+```
+
+This information is used to track processing status and provide feedback to users.
+
+## Complete Processing Flow
+
+```python
+def chunk(doc_path, collection_name: str):
+    # Find and load PDFs
+    pdf_paths = find_pdfs(doc_path)
+    if not pdf_paths:
+        print("No PDFs found..", file=sys.stderr)
+        sys.exit(1)
+    
+    docs = load_all(pdf_paths)
+    print(f"Loaded {len(docs)} documents (pages). Splitting documents into chunks....")
+
+    # Split into chunks
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size = 15000,
+        chunk_overlap = 4000
+    )
+    chunks = text_splitter.split_documents(documents=docs)
+
+    # Generate embeddings and store
+    embedding_model = OllamaEmbeddings(
+        model='qwen3-embedding:0.6b',
+        base_url='http://localhost:11434'
+    )
+
+    vector_store = QdrantVectorStore.from_documents(
+        documents=chunks,
+        embedding=embedding_model,
+        url='http://localhost:6333',
+        collection_name=collection_name,
+    )
+
+    print("Indexing of documents done....")
+    
+    return {
+        "stored": True,
+        "chunks": len(chunks),
+        "source": str(pdf_paths[0]),
+        "collection_name": collection_name,
+    }
+```
+
+<Tip>
+The processing pipeline is implemented in `backend/queue/doc_chunking.py` and runs asynchronously via Redis Queue (RQ) to avoid blocking the web server during large document uploads.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Assessment Generation" icon="clipboard-question" href="/features/assessment-generation">
+    Learn how processed documents are used to generate assessments
+  </Card>
+  
+  <Card title="RAG System" icon="brain" href="/features/rag-system">
+    Understand the retrieval-augmented generation architecture
+  </Card>
+</CardGroup>

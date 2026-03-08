@@ -1,0 +1,216 @@
+---
+title: 'Environment Variables'
+description: 'Configure environment variables for EduMate deployment'
+icon: 'gear'
+---
+
+## Overview
+
+EduMate requires several environment variables for proper configuration. This guide covers all the environment variables used across the application.
+
+<Note>
+Create a `.env` file in your project root to store these variables securely.
+</Note>
+
+## Required Variables
+
+### AI/ML Configuration
+
+<ParamField path="GEMINI_API_KEY" type="string" required>
+  Google Gemini API key for generating MCQ assessments.
+  
+  **Used in:**
+  - `chatting.py:11`
+  - `backend/queue/chat.py:11`
+  
+  **Example:**
+  ```bash
+  GEMINI_API_KEY=your_gemini_api_key_here
+  ```
+  
+  <Info>
+  Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+  </Info>
+</ParamField>
+
+### Database Configuration
+
+<ParamField path="DATABASE_URL" type="string" required>
+  PostgreSQL database connection string.
+  
+  **Used in:** `backend/database.py:7`
+  
+  **Format:**
+  ```bash
+  postgresql://username:password@host:port/database_name
+  ```
+  
+  **Default configuration:**
+  ```bash
+  postgresql://edumate_user:edumate_pass@localhost:5432/edumate
+  ```
+  
+  <Warning>
+  Replace default credentials in production environments!
+  </Warning>
+</ParamField>
+
+### Security Configuration
+
+<ParamField path="SECRET_KEY" type="string" required>
+  Secret key for JWT token generation and encryption.
+  
+  **Used in:** `backend/server.py:31`
+  
+  **Default (for development only):**
+  ```bash
+  SECRET_KEY=super_secret_edumate_key
+  ```
+  
+  <Warning>
+  Generate a strong, random secret key for production:
+  ```bash
+  python -c "import secrets; print(secrets.token_urlsafe(32))"
+  ```
+  </Warning>
+</ParamField>
+
+<ParamField path="ALGORITHM" type="string" default="HS256">
+  JWT signing algorithm.
+  
+  **Used in:** `backend/server.py:32`
+  
+  ```bash
+  ALGORITHM=HS256
+  ```
+</ParamField>
+
+<ParamField path="ACCESS_TOKEN_EXPIRE_MINUTES" type="integer" default="1440">
+  JWT access token expiration time in minutes (default: 24 hours).
+  
+  **Used in:** `backend/server.py:33`
+  
+  ```bash
+  ACCESS_TOKEN_EXPIRE_MINUTES=1440
+  ```
+</ParamField>
+
+<ParamField path="RESET_TOKEN_EXPIRE_MINUTES" type="integer" default="15">
+  Password reset token expiration time in minutes.
+  
+  **Used in:** `backend/server.py:34`
+  
+  ```bash
+  RESET_TOKEN_EXPIRE_MINUTES=15
+  ```
+</ParamField>
+
+### Redis Configuration
+
+<ParamField path="REDIS_HOST" type="string" default="localhost">
+  Redis server host address.
+  
+  **Used in:** `backend/client/rq_client.py:6`
+  
+  ```bash
+  REDIS_HOST=localhost
+  ```
+</ParamField>
+
+<ParamField path="REDIS_PORT" type="string" default="6379">
+  Redis server port number.
+  
+  **Used in:** `backend/client/rq_client.py:7`
+  
+  ```bash
+  REDIS_PORT=6379
+  ```
+</ParamField>
+
+### Vector Database Configuration
+
+<ParamField path="QDRANT_URL" type="string" default="http://localhost:6333">
+  Qdrant vector database URL.
+  
+  **Used in:**
+  - `backend/queue/chat.py:38`
+  - `backend/queue/doc_chunking.py:99`
+  
+  ```bash
+  QDRANT_URL=http://localhost:6333
+  ```
+</ParamField>
+
+### Ollama Configuration
+
+<ParamField path="OLLAMA_BASE_URL" type="string" default="http://localhost:11434">
+  Ollama server base URL for embeddings.
+  
+  **Used in:**
+  - `backend/queue/chat.py:25,33`
+  - `backend/queue/doc_chunking.py:93`
+  
+  ```bash
+  OLLAMA_BASE_URL=http://localhost:11434
+  ```
+</ParamField>
+
+<ParamField path="EMBEDDING_MODEL" type="string" default="qwen3-embedding:0.6b">
+  Ollama embedding model name.
+  
+  **Used in:**
+  - `backend/queue/chat.py:32`
+  - `backend/queue/doc_chunking.py:92`
+  
+  ```bash
+  EMBEDDING_MODEL=qwen3-embedding:0.6b
+  ```
+  
+  <Info>
+  Alternative model: `nomic-embed-text`
+  </Info>
+</ParamField>
+
+## Example .env File
+
+```bash
+# AI/ML
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Database
+DATABASE_URL=postgresql://edumate_user:edumate_pass@localhost:5432/edumate
+
+# Security
+SECRET_KEY=your_super_secret_key_here_change_in_production
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+RESET_TOKEN_EXPIRE_MINUTES=15
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# Vector Database
+QDRANT_URL=http://localhost:6333
+
+# Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+EMBEDDING_MODEL=qwen3-embedding:0.6b
+```
+
+## Loading Environment Variables
+
+EduMate uses `python-dotenv` to load environment variables:
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+```
+
+<Note>
+Make sure to add `.env` to your `.gitignore` file to prevent committing sensitive credentials.
+</Note>

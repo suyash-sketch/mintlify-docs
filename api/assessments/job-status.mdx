@@ -1,0 +1,154 @@
+---
+title: 'Check Job Status'
+api: 'GET /job_status'
+---
+
+Checks the status of an assessment generation job and retrieves results when complete.
+
+## Request
+
+### Query Parameters
+
+<ParamField query="job_id" type="string" required>
+  The job identifier returned from the [Generate Assessment](/api/assessments/generate) endpoint.
+</ParamField>
+
+## Response
+
+The response structure varies based on the job status:
+
+### Job Not Found
+
+<ResponseField name="status" type="null">
+  Returns `null` if the job ID doesn't exist or has expired.
+</ResponseField>
+
+### Job Finished Successfully
+
+<ResponseField name="status" type="string">
+  Returns `"finished"` when job completed successfully.
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  Contains the generated assessment content.
+  
+  <Expandable title="result properties">
+    <ResponseField name="mcqs" type="array">
+      Array of generated multiple-choice questions.
+      
+      <Expandable title="MCQ structure">
+        <ResponseField name="question" type="string">
+          The question text.
+        </ResponseField>
+        
+        <ResponseField name="options" type="array">
+          Array of answer options (typically 4 choices).
+        </ResponseField>
+        
+        <ResponseField name="correct_answer" type="string">
+          The correct answer text.
+        </ResponseField>
+        
+        <ResponseField name="bloom_level" type="string">
+          The Bloom's taxonomy level (e.g., "remember", "understand", "apply", "analyze", "evaluate", "create").
+        </ResponseField>
+        
+        <ResponseField name="explanation" type="string">
+          Explanation for why the correct answer is correct.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Job Failed
+
+<ResponseField name="status" type="string">
+  Returns `"failed"` when job encountered an error.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message describing what went wrong.
+</ResponseField>
+
+### Job In Progress
+
+<ResponseField name="status" type="string">
+  Returns current job status: `"queued"`, `"started"`, or other intermediate states.
+</ResponseField>
+
+## Example Requests
+
+```bash
+curl -X GET "http://localhost:8000/job_status?job_id=abc123-def456-ghi789"
+```
+
+## Example Responses
+
+### Job Still Processing
+
+```json
+{
+  "status": "started"
+}
+```
+
+### Job Completed
+
+```json
+{
+  "status": "finished",
+  "result": {
+    "mcqs": [
+      {
+        "question": "What is the primary function of chlorophyll in photosynthesis?",
+        "options": [
+          "Absorb light energy",
+          "Store glucose",
+          "Release oxygen",
+          "Transport water"
+        ],
+        "correct_answer": "Absorb light energy",
+        "bloom_level": "remember",
+        "explanation": "Chlorophyll is the pigment that captures light energy from the sun, which is the first step in photosynthesis."
+      },
+      {
+        "question": "How would limiting carbon dioxide affect the rate of photosynthesis?",
+        "options": [
+          "No effect",
+          "Increase the rate",
+          "Decrease the rate",
+          "Stop it completely"
+        ],
+        "correct_answer": "Decrease the rate",
+        "bloom_level": "analyze",
+        "explanation": "Carbon dioxide is a key reactant in photosynthesis. Limiting it would slow down the process as plants have less raw material to convert into glucose."
+      }
+    ]
+  }
+}
+```
+
+### Job Failed
+
+```json
+{
+  "status": "failed",
+  "error": "Connection timeout to vector database"
+}
+```
+
+### Job Not Found
+
+```json
+{
+  "status": null
+}
+```
+
+## Polling Recommendations
+
+- Poll this endpoint every 2-3 seconds while status is in progress
+- Jobs have a 600-second (10-minute) timeout
+- Once status is `"finished"`, save the result immediately as job data may expire
+- Use the [Save Assessment](/api/assessments/save) endpoint to persist results to your account

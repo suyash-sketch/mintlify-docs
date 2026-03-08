@@ -1,0 +1,123 @@
+{
+  "projectType": "saas",
+  "projectName": "EduMate",
+  "projectDescription": "AI-powered curriculum-aligned assessment generator using RAG, Langchain, Ollama, and Bloom's taxonomy for educators.",
+  "theme": "palm",
+  "primaryColor": "#2563eb",
+  "lightColor": "#60a5fa",
+  "darkColor": "#1e40af",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/document-processing",
+              "features/assessment-generation",
+              "features/blooms-taxonomy",
+              "features/rag-system"
+            ]
+          },
+          {
+            "group": "User Guide",
+            "pages": [
+              "guide/authentication",
+              "guide/uploading-documents",
+              "guide/generating-assessments",
+              "guide/viewing-history",
+              "guide/exporting-assessments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Deployment",
+        "groups": [
+          {
+            "group": "Infrastructure",
+            "pages": [
+              "deployment/overview",
+              "deployment/database-setup",
+              "deployment/vector-db",
+              "deployment/ollama-setup",
+              "deployment/backend",
+              "deployment/frontend"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "deployment/environment-variables",
+              "deployment/models",
+              "deployment/redis-queue"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/signup",
+              "api/auth/login",
+              "api/auth/me",
+              "api/auth/forgot-password",
+              "api/auth/reset-password"
+            ]
+          },
+          {
+            "group": "Document Processing",
+            "pages": [
+              "api/documents/chunking",
+              "api/documents/status"
+            ]
+          },
+          {
+            "group": "Assessments",
+            "pages": [
+              "api/assessments/generate",
+              "api/assessments/job-status",
+              "api/assessments/save",
+              "api/assessments/history",
+              "api/assessments/get"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "AI-powered assessment generation using RAG and LLMs",
+    "Bloom's taxonomy cognitive level classification",
+    "PDF document processing and vector embeddings",
+    "User authentication and assessment history",
+    "Customizable question distribution across cognitive levels",
+    "Export assessments to PDF and DOCX formats"
+  ],
+  "publicApiSurface": [
+    "POST /api/signup - User registration",
+    "POST /api/login - User authentication",
+    "GET /api/me - Get current user",
+    "POST /api/forgot-password - Request password reset",
+    "POST /api/reset-password - Reset password",
+    "POST /chunking - Upload and process PDF documents",
+    "GET /chunking/status - Check document processing status",
+    "POST /chat - Generate assessment questions",
+    "GET /job_status - Check assessment generation status",
+    "POST /api/assessments/save - Save generated assessment",
+    "GET /api/assessments/history - Get user's assessment history",
+    "GET /api/assessments/{assessment_id} - Get specific assessment"
+  ]
+}

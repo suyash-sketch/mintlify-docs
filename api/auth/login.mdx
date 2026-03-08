@@ -1,0 +1,64 @@
+---
+title: "Login"
+api: "POST /api/login"
+description: "Authenticate a user and receive an access token"
+---
+
+Authenticates a user with their email and password, returning a JWT access token that can be used for subsequent authenticated requests.
+
+## Request
+
+This endpoint uses OAuth2 password flow with form data.
+
+<ParamField body="username" type="string" required>
+  The user's email address (note: the field is named "username" per OAuth2 spec, but should contain the email)
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password
+</ParamField>
+
+## Response
+
+<ResponseField name="access_token" type="string">
+  The JWT access token to use for authenticated requests
+</ResponseField>
+
+<ResponseField name="token_type" type="string">
+  The token type, always "bearer"
+</ResponseField>
+
+## Example Request
+
+```bash
+curl -X POST http://localhost:8000/api/login \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=john@example.com&password=securepassword123"
+```
+
+## Example Response
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer"
+}
+```
+
+## Error Responses
+
+<Expandable title="400 - Incorrect credentials">
+  ```json
+  {
+    "detail": "Incorrect email or password"
+  }
+  ```
+</Expandable>
+
+## Usage
+
+After receiving the access token, include it in the Authorization header for authenticated requests:
+
+```bash
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
